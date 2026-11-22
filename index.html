@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d2125" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="TaskBoard">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>TaskBoard</title>
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #fff; --panel2: #ebecf0; --hover: #f1f2f4; --border: #e1e4ea;
+  --text: #172b4d; --muted: #6b778c; --accent: #0c66e4; --accent-weak: #e9f2ff;
+  --danger: #c9372c; --done: #22a06b; --col: #ebecf0;
+  --shadow: 0 1px 1px rgba(9,30,66,.2), 0 0 1px rgba(9,30,66,.25);
+  --menu-shadow: 0 8px 24px rgba(9,30,66,.22);
+  --top-h: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1d2125; --panel: #22272b; --panel2: #2c333a; --hover: #2a3036; --border: #384048;
+    --text: #dee4ea; --muted: #9fadbc; --accent: #579dff; --accent-weak: #1c2b41;
+    --danger: #f87168; --done: #4bce97; --col: #161a1d;
+    --shadow: 0 1px 1px rgba(0,0,0,.5); --menu-shadow: 0 8px 24px rgba(0,0,0,.55);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); color: var(--text); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif;
+  font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input { font: inherit; color: inherit; font-size: 16px; } /* 16px未満だとiPhoneで勝手にズームする */
+.muted { color: var(--muted); }
+.center { min-height: 100dvh; display: grid; place-items: center; }
+
+/* ---- header ---- */
+.top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  height: calc(var(--top-h) + env(safe-area-inset-top));
+  background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 800; letter-spacing: .3px; display: flex; align-items: center; gap: 8px; }
+.brand img { width: 24px; height: 24px; }
+.tabs { display: flex; gap: 4px; background: var(--panel2); padding: 3px; border-radius: 9px; margin: 0 auto; }
+.tabs button { padding: 5px 14px; border-radius: 7px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.tabs button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.tabs button.drop { outline: 2px dashed var(--accent); }
+.badge { font-size: 11px; background: var(--accent); color: #fff; border-radius: 10px; padding: 0 6px; min-width: 18px; text-align: center; line-height: 17px; }
+.sync { width: 8px; height: 8px; border-radius: 50%; background: var(--done); flex: none; }
+.sync.off { background: var(--danger); }
+
+/* ---- common controls ---- */
+.check { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; }
+.check i {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted);
+  display: grid; place-items: center; transition: background .12s, border-color .12s;
+}
+.check:hover i { border-color: var(--done); }
+.check.on i { background: var(--done); border-color: var(--done); }
+.check svg { width: 11px; height: 11px; stroke: #fff; fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.dots {
+  width: 30px; height: 28px; flex: none; border-radius: 6px; color: var(--muted);
+  font-size: 18px; line-height: 1; letter-spacing: -1px; display: grid; place-items: center;
+}
+.dots:hover, .dots[aria-expanded="true"] { background: var(--panel2); color: var(--text); }
+.menu {
+  position: fixed; z-index: 100; min-width: 210px; max-width: calc(100vw - 16px); max-height: 65vh; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--menu-shadow); padding: 5px; animation: pop .1s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: scale(.97); } }
+.mi { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mi:hover { background: var(--hover); }
+.mi .ic { width: 18px; text-align: center; color: var(--muted); flex: none; }
+.mi.danger, .mi.danger .ic { color: var(--danger); }
+.msec { font-size: 11px; font-weight: 700; color: var(--muted); padding: 8px 10px 3px; }
+.msep { height: 1px; background: var(--border); margin: 5px 0; }
+.edit {
+  flex: 1; min-width: 0; padding: 3px 6px; border: 2px solid var(--accent); border-radius: 6px;
+  background: var(--panel); outline: none;
+}
+.chip { padding: 4px 11px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); background: var(--panel); white-space: nowrap; }
+.chip.on { background: var(--accent-weak); color: var(--accent); border-color: transparent; }
+.seg { display: inline-flex; background: var(--panel2); padding: 2px; border-radius: 8px; }
+.seg button { padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.seg button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.btn { padding: 7px 14px; border-radius: 7px; font-weight: 600; background: var(--accent); color: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--muted); }
+.btn.ghost:hover { background: var(--panel2); color: var(--text); }
+
+/* ---- inbox ---- */
+.inbox { max-width: 760px; margin: 0 auto; padding: 14px max(12px, env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.composer {
+  display: flex; align-items: center; gap: 6px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; padding: 5px 5px 5px 12px; box-shadow: var(--shadow);
+}
+.composer:focus-within { border-color: var(--accent); }
+.composer input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; padding: 5px 0; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 4px; }
+.toolbar .chips { display: flex; gap: 6px; }
+.search { flex: 1; min-width: 120px; display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; }
+.search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; padding: 4px 0; font-size: 16px; }
+.ghead { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; color: var(--muted); margin: 16px 4px 6px; }
+.list { list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+.row { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 6px; min-height: 40px; border-top: 1px solid var(--border); }
+.row:first-child { border-top: 0; }
+.row:hover { background: var(--hover); }
+.list .row:first-child { border-radius: 10px 10px 0 0; } .list .row:last-child { border-radius: 0 0 10px 10px; } .list .row:only-child { border-radius: 10px; }
+.text { flex: 1; min-width: 0; word-break: break-word; white-space: pre-wrap; padding: 2px 0; }
+.done .text { text-decoration: line-through; color: var(--muted); }
+.stamp { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.empty { text-align: center; color: var(--muted); padding: 34px 12px; font-size: 14px; }
+
+/* calendar */
+.inbox.calmode { max-width: 1100px; }
+.calwrap { display: grid; gap: 14px; margin-top: 12px; }
+@media (min-width: 900px) { .calwrap { grid-template-columns: 340px 1fr; align-items: start; } .cal { position: sticky; top: calc(var(--top-h) + 14px); } }
+.cal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
+.cal-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.cal-head strong { flex: 1; text-align: center; font-size: 15px; }
+.icon { width: 32px; height: 32px; border-radius: 8px; font-size: 20px; color: var(--muted); }
+.icon:hover { background: var(--panel2); color: var(--text); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-w { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 2px 0 4px; }
+.cal-w.sun { color: #e5484d; } .cal-w.sat { color: #3e7bfa; }
+.cal-d { aspect-ratio: 1 / 1; max-height: 52px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-variant-numeric: tabular-nums; }
+.cal-d:hover { background: var(--hover); }
+.cal-d .n { font-size: 14px; line-height: 1.1; }
+.cal-d .cnt { font-size: 10px; line-height: 14px; min-width: 16px; height: 14px; padding: 0 4px; border-radius: 7px; background: var(--accent); color: #fff; font-weight: 700; }
+.cal-d .cnt.alldone { background: var(--panel2); color: var(--muted); }
+.cal-d .cnt.none { background: transparent; }
+.cal-d.today .n { color: var(--accent); font-weight: 800; }
+.cal-d.sel { background: var(--accent); }
+.cal-d.sel .n { color: #fff; font-weight: 700; }
+.cal-d.sel .cnt { background: #fff; color: var(--accent); }
+
+/* ---- board ---- */
+.board {
+  display: flex; gap: 12px; align-items: flex-start; overflow-x: auto;
+  padding: 12px max(12px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  height: calc(100dvh - var(--top-h) - env(safe-area-inset-top));
+}
+.col { flex: 0 0 284px; max-height: 100%; display: flex; flex-direction: column; background: var(--col); border-radius: 12px; }
+.col-head { display: flex; align-items: center; gap: 6px; padding: 8px 6px 6px 12px; }
+.col-head h3 { flex: 1; font-size: 14px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+.col-head .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.col-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 8px 4px; display: flex; flex-direction: column; gap: 8px; min-height: 12px; }
+.col-body.drop-end::after { content: ""; height: 3px; flex: none; background: var(--accent); border-radius: 2px; }
+.col-foot { padding: 4px 8px 8px; }
+.add-btn { width: 100%; text-align: left; padding: 7px 8px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 14px; }
+.add-btn:hover { background: var(--panel2); color: var(--text); }
+.add-form input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 2px solid var(--accent); background: var(--panel); outline: none; }
+.add-form .acts { display: flex; gap: 6px; margin-top: 6px; }
+.card {
+  display: flex; align-items: flex-start; gap: 4px; padding: 5px 2px 5px 4px;
+  background: var(--panel); border-radius: 8px; box-shadow: var(--shadow); cursor: grab;
+}
+.card:hover { box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+.card.dragging { opacity: .4; }
+.card.drop-before { box-shadow: 0 -4px 0 -1px var(--accent), var(--shadow); }
+.card-main { flex: 1; min-width: 0; padding-top: 3px; display: flex; flex-direction: column; gap: 2px; }
+.card-main .stamp { font-size: 11px; }
+.add-col { background: transparent; border: 2px dashed var(--border); }
+.add-col .add-btn { padding: 10px 12px; }
+.add-col .add-form { padding: 8px; }
+@media (max-width: 640px) {
+  .board { scroll-snap-type: x mandatory; scroll-padding: 0 12px; gap: 10px; }
+  .col { flex-basis: 86vw; scroll-snap-align: start; }
+  .tabs button { padding: 5px 11px; }
+  .brand span { display: none; }
+}
+
+/* ---- toast ---- */
+.toast {
+  position: fixed; z-index: 200; left: 50%; translate: -50% 0;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 24px);
+  background: #172b4d; color: #fff; padding: 9px 10px 9px 16px; border-radius: 10px;
+  box-shadow: var(--menu-shadow); font-size: 14px; animation: pop .15s ease-out;
+}
+.toast button { color: #85b8ff; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.toast button:hover { background: rgba(255,255,255,.1); }
+
+/* ---- auth ---- */
+.auth { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
+.auth-card { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 26px 22px; box-shadow: var(--shadow); }
+.auth-card h1 { font-size: 22px; display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 6px; }
+.auth-card h1 img { width: 30px; }
+.auth-card p { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.field input { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); outline: none; }
+.field input:focus { border-color: var(--accent); }
+.auth .btn { width: 100%; padding: 10px; }
+.msg { font-size: 13px; margin-top: 10px; text-align: center; }
+.msg.err { color: var(--danger); }
+.link { display: block; margin: 14px auto 0; color: var(--accent); font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="app"><div class="center muted">読み込み中…</div></div>
+<script type="module">
+import { html, render, useState, useEffect, useRef, useCallback, useMemo } from 'https://unpkg.com/htm@3.1.1/preact/standalone.module.js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
+
+// LifeOS / 7つの習慣 と同じ Supabase プロジェクト・同じアカウントを使う（テーブルは tb_ プレフィックス）
+const sb = createClient('https://aowozgaddvxfrmxvhdms.supabase.co', 'sb_publishable_UoEj1KjRpaoCH1f__MplAw_Yd6NOY0L')
+const DEFAULT_COLUMNS = ['未着手', '進行中', '完了']
+
+/* ================= utils ================= */
+const uuid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16) }))
+const pad = n => String(n).padStart(2, '0')
+const WD = '日月火水木金土'
+const dayKey = d => { const x = typeof d === 'string' ? new Date(d) : d; return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}` }
+const todayKey = () => dayKey(new Date())
+const keyToDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d) }
+function fmtStamp(iso) {
+  const d = new Date(iso), t = `${pad(d.getHours())}:${pad(d.getMinutes())}`, md = `${d.getMonth() + 1}/${d.getDate()}`
+  return d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}/${md} ${t}` : `${md} ${t}`
+}
+const fmtFull = iso => { const d = new Date(iso); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())} 作成` }
+function dayLabel(k) {
+  const y = new Date(); y.setDate(y.getDate() - 1)
+  const d = keyToDate(k), base = `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`
+  if (k === todayKey()) return `今日 ${base}`
+  if (k === dayKey(y)) return `昨日 ${base}`
+  return d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}/${base}` : base
+}
+const isEnter = e => e.key === 'Enter' && !e.isComposing && e.keyCode !== 229   // 日本語変換の確定Enterは無視
+const byCreatedDesc = (a, b) => (a.created_at < b.created_at ? 1 : -1)
+function useLS(key, init) {
+  const [v, setV] = useState(() => localStorage.getItem(key) ?? init)
+  return [v, x => { localStorage.setItem(key, x); setV(x) }]
+}
+
+/* ================= data ================= */
+function useBoard(userId, notify) {
+  const [items, setItems] = useState([])
+  const [columns, setColumns] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [online, setOnline] = useState(true)
+  const itemsRef = useRef(items); itemsRef.current = items
+  const colsRef = useRef(columns); colsRef.current = columns
+  const notifyRef = useRef(notify); notifyRef.current = notify
+
+  const load = useCallback(async () => {
+    const [ir, cr] = await Promise.all([
+      sb.from('tb_items').select('*').order('created_at', { ascending: false }).limit(5000),
+      sb.from('tb_columns').select('*').order('position'),
+    ])
+    if (ir.error || cr.error) { setOnline(false); setLoading(false); notifyRef.current('読み込みに失敗しました: ' + (ir.error || cr.error).message); return }
+    let cols = cr.data
+    const seedKey = 'tb_seeded_' + userId
+    if (cols.length === 0 && !localStorage.getItem(seedKey)) {
+      localStorage.setItem(seedKey, '1')
+      const { data } = await sb.from('tb_columns').insert(DEFAULT_COLUMNS.map((title, i) => ({ id: uuid(), title, position: i, user_id: userId }))).select()
+      cols = data || []
+    }
+    setItems(ir.data); setColumns(cols); setOnline(true); setLoading(false)
+  }, [userId])
+
+  useEffect(() => {
+    load()
+    let t
+    const soon = () => { clearTimeout(t); t = setTimeout(load, 600) }
+    // 他の端末での変更をリアルタイムに反映
+    const ch = sb.channel('tb-sync-' + userId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tb_items' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tb_columns' }, soon)
+      .subscribe()
+    const onVis = () => document.visibilityState === 'visible' && load()
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('online', load)
+    return () => { clearTimeout(t); sb.removeChannel(ch); document.removeEventListener('visibilitychange', onVis); window.removeEventListener('online', load) }
+  }, [load])
+
+  const act = useMemo(() => {
+    const now = () => new Date().toISOString()
+    const fail = error => { if (error) { notifyRef.current('保存に失敗しました: ' + error.message); setOnline(false); load() } return !!error }
+    const nextPos = colId => { const ps = itemsRef.current.filter(i => i.column_id === colId).map(i => i.position); return ps.length ? Math.max(...ps) + 1 : 0 }
+    const colName = id => colsRef.current.find(c => c.id === id)?.title ?? ''
+
+    const a = {
+      async addItem(content, columnId = null) {
+        const it = { id: uuid(), content, done: false, done_at: null, column_id: columnId, position: columnId ? nextPos(columnId) : 0, created_at: now() }
+        setItems(p => [it, ...p])
+        const { error } = await sb.from('tb_items').insert({ ...it, user_id: userId }); fail(error)
+      },
+      async update(id, patch) {
+        setItems(p => p.map(i => (i.id === id ? { ...i, ...patch } : i)))
+        const { error } = await sb.from('tb_items').update({ ...patch, updated_at: now() }).eq('id', id); return !fail(error)
+      },
+      toggle: item => a.update(item.id, item.done ? { done: false, done_at: null } : { done: true, done_at: now() }),
+      async remove(item) {
+        setItems(p => p.filter(i => i.id !== item.id))
+        const { error } = await sb.from('tb_items').delete().eq('id', item.id)
+        if (fail(error)) return
+        notifyRef.current('削除しました', async () => {
+          const back = { ...item, column_id: colsRef.current.some(c => c.id === item.column_id) ? item.column_id : null }
+          setItems(p => [back, ...p].sort(byCreatedDesc))
+          const { error } = await sb.from('tb_items').insert({ ...back, user_id: userId }); fail(error)
+        })
+      },
+      // columnId=null で Inbox に戻す。beforeId を渡すとそのカードの直前に入れる
+      async move(id, columnId, beforeId = null, { silent = false } = {}) {
+        const it = itemsRef.current.find(i => i.id === id)
+        if (!it || beforeId === id) return
+        let position = 0
+        if (columnId) {
+          const list = itemsRef.current.filter(i => i.column_id === columnId && i.id !== id).sort((x, y) => x.position - y.position)
+          const idx = beforeId ? list.findIndex(i => i.id === beforeId) : -1
+          if (idx === -1) position = list.length ? list[list.length - 1].position + 1 : 0
+          else position = idx === 0 ? list[0].position - 1 : (list[idx - 1].position + list[idx].position) / 2
+        }
+        const prev = { column_id: it.column_id, position: it.position }
+        const ok = await a.update(id, { column_id: columnId, position })
+        if (ok && !silent && prev.column_id !== columnId) {
+          notifyRef.current(columnId ? `「${colName(columnId)}」へ移動しました` : 'Inboxに戻しました', () => a.update(id, prev))
+        }
+      },
+      async addColumn(title) {
+        const c = { id: uuid(), title, position: colsRef.current.length ? Math.max(...colsRef.current.map(c => c.position)) + 1 : 0, created_at: now() }
+        setColumns(p => [...p, c])
+        const { error } = await sb.from('tb_columns').insert({ ...c, user_id: userId }); fail(error)
+      },
+      async renameColumn(id, title) {
+        setColumns(p => p.map(c => (c.id === id ? { ...c, title } : c)))
+        const { error } = await sb.from('tb_columns').update({ title }).eq('id', id); fail(error)
+      },
+      async shiftColumn(id, dir) {
+        const cols = [...colsRef.current], i = cols.findIndex(c => c.id === id), j = i + dir
+        if (i < 0 || j < 0 || j >= cols.length) return
+        const A = cols[i], B = cols[j]
+        let pa = B.position, pb = A.position
+        if (pa === pb) { pa = j; pb = i }
+        setColumns(p => p.map(c => (c.id === A.id ? { ...c, position: pa } : c.id === B.id ? { ...c, position: pb } : c)).sort((x, y) => x.position - y.position))
+        const r = await Promise.all([sb.from('tb_columns').update({ position: pa }).eq('id', A.id), sb.from('tb_columns').update({ position: pb }).eq('id', B.id)])
+        fail(r[0].error || r[1].error)
+      },
+      async removeColumn(col) {
+        // 列を消しても中のカードは消さずに Inbox へ戻す（DB側も on delete set null）
+        setItems(p => p.map(i => (i.column_id === col.id ? { ...i, column_id: null } : i)))
+        setColumns(p => p.filter(c => c.id !== col.id))
+        const r1 = await sb.from('tb_items').update({ column_id: null }).eq('column_id', col.id)
+        if (fail(r1.error)) return
+        const { error } = await sb.from('tb_columns').delete().eq('id', col.id); fail(error)
+      },
+    }
+    return a
+  }, [userId, load])
+
+  return { items, columns, loading, online, act, reload: load }
+}
+
+/* ================= small components ================= */
+function DotMenu({ render, label = 'メニュー' }) {
+  const [pos, setPos] = useState(null)
+  const btn = useRef(), menu = useRef()
+  const close = () => setPos(null)
+  useEffect(() => {
+    if (!pos) return
+    const down = e => { if (!menu.current?.contains(e.target) && !btn.current?.contains(e.target)) close() }
+    const key = e => e.key === 'Escape' && close()
+    const scroll = e => { if (!menu.current?.contains(e.target)) close() }
+    document.addEventListener('pointerdown', down)
+    document.addEventListener('keydown', key)
+    window.addEventListener('scroll', scroll, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('pointerdown', down); document.removeEventListener('keydown', key)
+      window.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', close)
+    }
+  }, [pos])
+  const toggle = e => {
+    e.stopPropagation()
+    if (pos) return close()
+    const r = btn.current.getBoundingClientRect()
+    const right = Math.max(8, innerWidth - r.right)
+    setPos(r.bottom < innerHeight * 0.6 ? { top: r.bottom + 4, right } : { bottom: innerHeight - r.top + 4, right })
+  }
+  return html`
+    <button ref=${btn} class="dots" aria-label=${label} aria-haspopup="menu" aria-expanded=${pos ? 'true' : 'false'} onClick=${toggle} draggable=${false}>•••</button>
+    ${pos && html`<div ref=${menu} class="menu" role="menu" style=${pos} onClick=${e => e.stopPropagation()}>${render(close)}</div>`}`
+}
+
+const Check = ({ done, onToggle }) => html`
+  <button class=${'check' + (done ? ' on' : '')} role="checkbox" aria-checked=${done ? 'true' : 'false'}
+    title=${done ? 'クリックで未済に戻す' : 'クリックで処理済にする'} onClick=${e => { e.stopPropagation(); onToggle() }}>
+    <i>${done && html`<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg>`}</i>
+  </button>`
+
+function EditInput({ value, onSave, onCancel }) {
+  const [v, setV] = useState(value)
+  const ref = useRef(), finished = useRef(false)
+  useEffect(() => { ref.current.focus(); ref.current.select() }, [])
+  const save = () => { if (finished.current) return; finished.current = true; const t = v.trim(); t && t !== value ? onSave(t) : onCancel() }
+  return html`<input ref=${ref} class="edit" value=${v} onInput=${e => setV(e.target.value)} onBlur=${save}
+    onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); save() } else if (e.key === 'Escape') { finished.current = true; onCancel() } }} />`
+}
+
+const MI = ({ icon, label, onClick, danger }) => html`
+  <button class=${'mi' + (danger ? ' danger' : '')} role="menuitem" onClick=${onClick}><span class="ic">${icon}</span>${label}</button>`
+
+/* ================= inbox ================= */
+function InboxRow({ item, columns, act, editing, setEditing }) {
+  return html`
+    <li class=${'row' + (item.done ? ' done' : '')}>
+      <${Check} done=${item.done} onToggle=${() => act.toggle(item)} />
+      ${editing
+        ? html`<${EditInput} value=${item.content} onSave=${t => { act.update(item.id, { content: t }); setEditing(null) }} onCancel=${() => setEditing(null)} />`
+        : html`<span class="text" onDblClick=${() => setEditing(item.id)}>${item.content}</span>`}
+      <time class="stamp" datetime=${item.created_at} title=${fmtFull(item.created_at)}>${fmtStamp(item.created_at)}</time>
+      <${DotMenu} render=${close => html`
+        <${MI} icon="✎" label="編集" onClick=${() => { close(); setEditing(item.id) }} />
+        <${MI} icon=${item.done ? '↺' : '✓'} label=${item.done ? '未済に戻す' : '処理済にする'} onClick=${() => { close(); act.toggle(item) }} />
+        <div class="msec">ボード（カンバン）へ移動</div>
+        ${columns.length === 0 && html`<div class="msec" style="font-weight:400">列がありません</div>`}
+        ${columns.map(c => html`<${MI} key=${c.id} icon="→" label=${c.title} onClick=${() => { close(); act.move(item.id, c.id) }} />`)}
+        <div class="msep"></div>
+        <${MI} icon="🗑" label="削除" danger onClick=${() => { close(); act.remove(item) }} />`} />
+    </li>`
+}
+
+function Calendar({ month, setMonth, counts, day, setDay }) {
+  const y = month.getFullYear(), m = month.getMonth()
+  const lead = new Date(y, m, 1).getDay(), n = new Date(y, m + 1, 0).getDate(), tk = todayKey()
+  const cells = [...Array(lead).fill(0), ...Array.from({ length: n }, (_, i) => i + 1)]
+  const goToday = () => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setDay(tk) }
+  return html`
+    <div class="cal">
+      <div class="cal-head">
+        <button class="icon" aria-label="前の月" onClick=${() => setMonth(new Date(y, m - 1, 1))}>‹</button>
+        <strong>${y}年${m + 1}月</strong>
+        <button class="icon" aria-label="次の月" onClick=${() => setMonth(new Date(y, m + 1, 1))}>›</button>
+        <button class="chip" onClick=${goToday}>今日</button>
+      </div>
+      <div class="cal-grid">
+        ${[...WD].map((w, i) => html`<div class=${'cal-w' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '')}>${w}</div>`)}
+        ${cells.map((d, i) => {
+          if (!d) return html`<div key=${'b' + i}></div>`
+          const k = `${y}-${pad(m + 1)}-${pad(d)}`, c = counts[k]
+          return html`<button key=${k} class=${'cal-d' + (k === day ? ' sel' : '') + (k === tk ? ' today' : '')} onClick=${() => setDay(k)}
+              title=${c ? `${c.total}件（未済 ${c.open}）` : ''}>
+            <span class="n">${d}</span>
+            <span class=${'cnt' + (!c ? ' none' : c.open === 0 ? ' alldone' : '')}>${c ? (c.open || c.total) : ''}</span>
+          </button>`
+        })}
+      </div>
+    </div>`
+}
+
+function Inbox({ items, columns, act }) {
+  const [text, setText] = useState('')
+  const [view, setView] = useLS('tb_view', 'list')
+  const [status, setStatus] = useLS('tb_status', 'all')
+  const [q, setQ] = useState('')
+  const [day, setDay] = useState(todayKey)
+  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [editing, setEditing] = useState(null)
+  const inputRef = useRef()
+
+  const add = () => {
+    const t = text.trim(); if (!t) return
+    act.addItem(t); setText('')
+    if (view === 'calendar') { const d = new Date(); setDay(todayKey()); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)) }
+    inputRef.current?.focus()
+  }
+
+  const base = useMemo(() => {
+    const ql = q.trim().toLowerCase()
+    return items.filter(i => (status === 'all' || (status === 'open' ? !i.done : i.done)) && (!ql || i.content.toLowerCase().includes(ql)))
+  }, [items, status, q])
+  const counts = useMemo(() => {
+    const m = {}
+    for (const i of items) { const k = dayKey(i.created_at); (m[k] ||= { total: 0, open: 0 }).total++; if (!i.done) m[k].open++ }
+    return m
+  }, [items])
+  const groups = useMemo(() => {
+    const out = []; let cur = null
+    for (const i of base) { const k = dayKey(i.created_at); if (!cur || cur.k !== k) out.push(cur = { k, list: [] }); cur.list.push(i) }
+    return out
+  }, [base])
+  const dayList = useMemo(() => base.filter(i => dayKey(i.created_at) === day), [base, day])
+
+  const rows = list => html`<ul class="list">${list.map(i => html`<${InboxRow} key=${i.id} item=${i} columns=${columns} act=${act} editing=${editing === i.id} setEditing=${setEditing} />`)}</ul>`
+  const openCount = items.filter(i => !i.done).length
+
+  return html`
+    <main class=${'inbox' + (view === 'calendar' ? ' calmode' : '')}>
+      <div class="composer">
+        <input ref=${inputRef} value=${text} placeholder="思いついたことを入力して Enter…" enterkeyhint="done" aria-label="新しいメモ・タスク"
+          onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); add() } }} />
+        <button class="btn" disabled=${!text.trim()} onClick=${add}>追加</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="seg" role="tablist">
+          <button class=${view === 'list' ? 'on' : ''} onClick=${() => setView('list')}>☰ 一覧</button>
+          <button class=${view === 'calendar' ? 'on' : ''} onClick=${() => setView('calendar')}>▦ カレンダー</button>
+        </div>
+        <div class="chips">
+          ${[['all', 'すべて'], ['open', '未済'], ['done', '処理済']].map(([k, l]) => html`<button class=${'chip' + (status === k ? ' on' : '')} onClick=${() => setStatus(k)}>${l}</button>`)}
+        </div>
+        <label class="search"><span class="muted">⌕</span><input type="search" placeholder="検索" value=${q} onInput=${e => setQ(e.target.value)} /></label>
+      </div>
+
+      ${view === 'list' ? html`
+        ${groups.length === 0 && html`<div class="empty">${items.length ? '条件に合うものはありません' : 'まだ何もありません。上の欄に思いついたことを書いてみましょう。'}</div>`}
+        ${groups.map(g => html`<section key=${g.k}><div class="ghead"><span>${dayLabel(g.k)}</span><span>${g.list.length}件</span></div>${rows(g.list)}</section>`)}
+        ${items.length > 0 && html`<div class="ghead" style="justify-content:center;margin-top:20px"><span>Inbox 未済 ${openCount} 件</span></div>`}
+      ` : html`
+        <div class="calwrap">
+          <${Calendar} month=${month} setMonth=${setMonth} counts=${counts} day=${day} setDay=${setDay} />
+          <section>
+            <div class="ghead" style="margin-top:0"><span>${dayLabel(day)}</span><span>${dayList.length}件</span></div>
+            ${dayList.length ? rows(dayList) : html`<div class="empty list">この日の項目はありません</div>`}
+          </section>
+        </div>`}
+    </main>`
+}
+
+/* ================= board ================= */
+function Card({ item, col, columns, act, drag, setDrag, over, setOver }) {
+  const [editing, setEditing] = useState(false)
+  const cls = 'card' + (item.done ? ' done' : '') + (drag === item.id ? ' dragging' : '') + (over && over.before === item.id && drag !== item.id ? ' drop-before' : '')
+  return html`
+    <div class=${cls} draggable=${!editing}
+      onDragStart=${e => { e.dataTransfer.setData('text/plain', item.id); e.dataTransfer.effectAllowed = 'move'; setDrag(item.id) }}
+      onDragEnd=${() => { setDrag(null); setOver(null) }}
+      onDragOver=${e => { if (!drag) return; e.preventDefault(); e.stopPropagation(); if (!over || over.before !== item.id) setOver({ col: col.id, before: item.id }) }}
+      onDrop=${e => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); setOver(null); id && act.move(id, col.id, item.id, { silent: true }) }}>
+      <${Check} done=${item.done} onToggle=${() => act.toggle(item)} />
+      <div class="card-main">
+        ${editing
+          ? html`<${EditInput} value=${item.content} onSave=${t => { act.update(item.id, { content: t }); setEditing(false) }} onCancel=${() => setEditing(false)} />`
+          : html`<div class="text" onDblClick=${() => setEditing(true)}>${item.content}</div>`}
+        <time class="stamp" datetime=${item.created_at} title=${fmtFull(item.created_at)}>${fmtStamp(item.created_at)}</time>
+      </div>
+      <${DotMenu} render=${close => html`
+        <${MI} icon="✎" label="編集" onClick=${() => { close(); setEditing(true) }} />
+        <${MI} icon=${item.done ? '↺' : '✓'} label=${item.done ? '未済に戻す' : '処理済にする'} onClick=${() => { close(); act.toggle(item) }} />
+        ${columns.length > 1 && html`<div class="msec">別の列へ移動</div>`}
+        ${columns.filter(c => c.id !== col.id).map(c => html`<${MI} key=${c.id} icon="→" label=${c.title} onClick=${() => { close(); act.move(item.id, c.id) }} />`)}
+        <div class="msep"></div>
+        <${MI} icon="⤺" label="Inboxに戻す" onClick=${() => { close(); act.move(item.id, null) }} />
+        <${MI} icon="🗑" label="削除" danger onClick=${() => { close(); act.remove(item) }} />`} />
+    </div>`
+}
+
+function AddForm({ placeholder, button, onAdd, onClose, keepOpen }) {
+  const [v, setV] = useState('')
+  const ref = useRef()
+  useEffect(() => ref.current.focus(), [])
+  const submit = () => { const t = v.trim(); if (!t) return onClose(); onAdd(t); setV(''); keepOpen ? ref.current.focus() : onClose() }
+  return html`
+    <div class="add-form">
+      <input ref=${ref} value=${v} placeholder=${placeholder} onInput=${e => setV(e.target.value)}
+        onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); submit() } else if (e.key === 'Escape') onClose() }}
+        onBlur=${() => { if (!v.trim()) setTimeout(onClose, 120) }} />
+      <div class="acts"><button class="btn" onMouseDown=${e => e.preventDefault()} onClick=${submit}>${button}</button><button class="btn ghost" onClick=${onClose}>キャンセル</button></div>
+    </div>`
+}
+
+function Column({ col, idx, total, cards, columns, act, drag, setDrag, over, setOver }) {
+  const [adding, setAdding] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const isOverEnd = over && over.col === col.id && !over.before
+  return html`
+    <section class="col" aria-label=${col.title}>
+      <div class="col-head">
+        ${renaming
+          ? html`<${EditInput} value=${col.title} onSave=${t => { act.renameColumn(col.id, t); setRenaming(false) }} onCancel=${() => setRenaming(false)} />`
+          : html`<h3 onDblClick=${() => setRenaming(true)} title="ダブルクリックで名前を変更">${col.title}</h3>`}
+        <span class="count">${cards.filter(c => !c.done).length}/${cards.length}</span>
+        <${DotMenu} label="列のメニュー" render=${close => html`
+          <${MI} icon="✎" label="列の名前を変更" onClick=${() => { close(); setRenaming(true) }} />
+          <${MI} icon="＋" label="カードを追加" onClick=${() => { close(); setAdding(true) }} />
+          ${idx > 0 && html`<${MI} icon="←" label="左へ移動" onClick=${() => { close(); act.shiftColumn(col.id, -1) }} />`}
+          ${idx < total - 1 && html`<${MI} icon="→" label="右へ移動" onClick=${() => { close(); act.shiftColumn(col.id, 1) }} />`}
+          <div class="msep"></div>
+          <${MI} icon="🗑" label="列を削除" danger onClick=${() => {
+            close()
+            if (confirm(`列「${col.title}」を削除しますか？${cards.length ? `\n中のカード ${cards.length} 件は Inbox に戻ります。` : ''}`)) act.removeColumn(col)
+          }} />`} />
+      </div>
+      <div class=${'col-body' + (isOverEnd ? ' drop-end' : '')}
+        onDragOver=${e => { if (!drag) return; e.preventDefault(); if (!isOverEnd) setOver({ col: col.id, before: null }) }}
+        onDrop=${e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); setOver(null); id && act.move(id, col.id, null, { silent: true }) }}>
+        ${cards.map(it => html`<${Card} key=${it.id} item=${it} col=${col} columns=${columns} act=${act} drag=${drag} setDrag=${setDrag} over=${over} setOver=${setOver} />`)}
+      </div>
+      <div class="col-foot">
+        ${adding
+          ? html`<${AddForm} placeholder="カードの内容…" button="追加" keepOpen onAdd=${t => act.addItem(t, col.id)} onClose=${() => setAdding(false)} />`
+          : html`<button class="add-btn" onClick=${() => setAdding(true)}>＋ カードを追加</button>`}
+      </div>
+    </section>`
+}
+
+function Board({ items, columns, act, drag, setDrag }) {
+  const [over, setOver] = useState(null)
+  const [addingCol, setAddingCol] = useState(false)
+  const byCol = useMemo(() => {
+    const m = {}
+    for (const c of columns) m[c.id] = []
+    for (const i of items) if (i.column_id && m[i.column_id]) m[i.column_id].push(i)
+    for (const k in m) m[k].sort((a, b) => a.position - b.position)
+    return m
+  }, [items, columns])
+  return html`
+    <main class="board" onDragLeave=${e => { if (!e.relatedTarget) setOver(null) }}>
+      ${columns.map((c, i) => html`<${Column} key=${c.id} col=${c} idx=${i} total=${columns.length} cards=${byCol[c.id] || []} columns=${columns}
+          act=${act} drag=${drag} setDrag=${setDrag} over=${over} setOver=${setOver} />`)}
+      <section class="col add-col">
+        ${addingCol
+          ? html`<${AddForm} placeholder="列の名前…" button="列を追加" onAdd=${t => act.addColumn(t)} onClose=${() => setAddingCol(false)} />`
+          : html`<button class="add-btn" onClick=${() => setAddingCol(true)}>＋ 列を追加</button>`}
+      </section>
+    </main>`
+}
+
+/* ================= shell ================= */
+function Main({ session }) {
+  const [toast, setToast] = useState(null)
+  const timer = useRef()
+  const notify = useCallback((msg, undo) => {
+    clearTimeout(timer.current)
+    setToast({ msg, undo, k: Date.now() })
+    timer.current = setTimeout(() => setToast(null), undo ? 6000 : 4000)
+  }, [])
+  const { items, columns, loading, online, act } = useBoard(session.user.id, notify)
+  const [tab, setTab] = useLS('tb_tab', 'inbox')
+  const [drag, setDrag] = useState(null)
+  const [tabDrop, setTabDrop] = useState(false)
+
+  const inboxItems = useMemo(() => items.filter(i => !i.column_id), [items])
+  const openInbox = inboxItems.filter(i => !i.done).length
+
+  return html`
+    <header class="top">
+      <div class="brand"><img src="icon.svg" alt="" /><span>TaskBoard</span></div>
+      <nav class="tabs">
+        <button class=${(tab === 'inbox' ? 'on' : '') + (tabDrop ? ' drop' : '')} onClick=${() => setTab('inbox')}
+          onDragOver=${e => { if (drag) { e.preventDefault(); setTabDrop(true) } }} onDragLeave=${() => setTabDrop(false)}
+          onDrop=${e => { e.preventDefault(); setTabDrop(false); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); id && act.move(id, null) }}
+          title="ボードのカードをここへドラッグすると Inbox に戻せます">
+          Inbox ${openInbox > 0 && html`<span class="badge">${openInbox}</span>`}
+        </button>
+        <button class=${tab === 'board' ? 'on' : ''} onClick=${() => setTab('board')}>ボード</button>
+      </nav>
+      <span class=${'sync' + (online ? '' : ' off')} title=${online ? '同期中' : '同期できていません'}></span>
+      <${DotMenu} label="アカウント" render=${close => html`
+        <div class="msec" style="font-weight:400">${session.user.email}</div>
+        <${MI} icon="⟳" label="再読み込み" onClick=${() => { close(); location.reload() }} />
+        <div class="msep"></div>
+        <${MI} icon="⎋" label="ログアウト" onClick=${() => { close(); sb.auth.signOut() }} />`} />
+    </header>
+    ${loading ? html`<div class="empty">読み込み中…</div>`
+      : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} act=${act} />`
+      : html`<${Board} items=${items} columns=${columns} act=${act} drag=${drag} setDrag=${setDrag} />`}
+    ${toast && html`<div class="toast" key=${toast.k} role="status">
+        <span>${toast.msg}</span>
+        ${toast.undo && html`<button onClick=${() => { const u = toast.undo; setToast(null); u() }}>元に戻す</button>`}
+      </div>`}`
+}
+
+function Auth() {
+  const [mode, setMode] = useState('signin')
+  const [email, setEmail] = useState(''), [password, setPassword] = useState('')
+  const [err, setErr] = useState(''), [info, setInfo] = useState(''), [busy, setBusy] = useState(false)
+  const submit = async e => {
+    e.preventDefault(); setErr(''); setInfo(''); setBusy(true)
+    try {
+      if (mode === 'signin') {
+        const { error } = await sb.auth.signInWithPassword({ email, password })
+        if (error) setErr('ログインに失敗しました: ' + error.message)
+      } else {
+        const { data, error } = await sb.auth.signUp({ email, password })
+        if (error) setErr('登録に失敗しました: ' + error.message)
+        else if (!data.session) setInfo('確認メールを送信しました。リンクをクリックしてからログインしてください。')
+      }
+    } finally { setBusy(false) }
+  }
+  return html`
+    <div class="auth"><form class="auth-card" onSubmit=${submit}>
+      <h1><img src="icon.svg" alt="" />TaskBoard</h1>
+      <p>LifeOS・7つの習慣アプリと同じアカウントで使えます</p>
+      <div class="field"><label>メールアドレス</label><input type="email" required autocomplete="email" value=${email} onInput=${e => setEmail(e.target.value)} /></div>
+      <div class="field"><label>パスワード（6文字以上）</label><input type="password" required minlength="6" autocomplete=${mode === 'signin' ? 'current-password' : 'new-password'} value=${password} onInput=${e => setPassword(e.target.value)} /></div>
+      <button class="btn" disabled=${busy}>${mode === 'signin' ? 'ログイン' : 'アカウント作成'}</button>
+      ${err && html`<div class="msg err">${err}</div>`}
+      ${info && html`<div class="msg">${info}</div>`}
+      <button type="button" class="link" onClick=${() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setErr(''); setInfo('') }}>
+        ${mode === 'signin' ? '初めての方：アカウントを作成' : 'ログイン画面に戻る'}
+      </button>
+    </form></div>`
+}
+
+function App() {
+  const [session, setSession] = useState(undefined)
+  useEffect(() => {
+    sb.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data } = sb.auth.onAuthStateChange((_e, s) => setSession(s))
+    return () => data.subscription.unsubscribe()
+  }, [])
+  if (session === undefined) return html`<div class="center muted">読み込み中…</div>`
+  if (!session) return html`<${Auth} />`
+  return html`<${Main} key=${session.user.id} session=${session} />`
+}
+
+render(html`<${App} />`, document.getElementById('app'))
+</script>
+</body>
+</html>
