@@ -428,6 +428,10 @@ button.lrow:hover { background: var(--hover); }
 .dnum { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .dsub { font-size: 12px; line-height: 1.3; color: var(--muted); font-weight: 600; }
 .drow { gap: 8px; padding: 6px 6px 6px 10px; }
+.dlist .drow { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dlist .drow.dragging { opacity: .35; }
+.dlist .drow.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
+.dlist .drow.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
 .dic { width: 30px; text-align: center; font-size: 22px; flex: none; }
 .dmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dmain small { font-size: 12px; color: var(--muted); }
@@ -1570,6 +1574,16 @@ function useLog(userId, notify) {
         const { error } = await sb.from('tb_daily_items').update(patch).eq('id', id); fail(error)
       },
       moveDaily: (id, dir) => swap('tb_daily_items', itemsRef.current, setItems, id, dir),
+      // ドラッグでデイリー項目を beforeId の直前へ（null なら最後）
+      async reorderDaily(id, beforeId) {
+        if (id === beforeId) return
+        const list = itemsRef.current.filter(x => x.id !== id)
+        const idx = beforeId ? list.findIndex(x => x.id === beforeId) : -1
+        const position = idx === -1 ? (list.length ? list[list.length - 1].position + 1 : 0)
+          : idx === 0 ? list[0].position - 1 : (list[idx - 1].position + list[idx].position) / 2
+        setItems(p => p.map(x => (x.id === id ? { ...x, position } : x)).sort((a, b) => a.position - b.position))
+        const { error } = await sb.from('tb_daily_items').update({ position }).eq('id', id); fail(error)
+      },
       async deleteDaily(x) {
         setItems(p => p.filter(y => y.id !== x.id))
         const { error } = await sb.from('tb_daily_items').delete().eq('id', x.id); if (!fail(error)) bump()
@@ -1987,18 +2001,21 @@ function LogModal({ L, entry, onClose }) {
 }
 
 /* ---- daily (ピンポイントの時刻・値) ---- */
-function DailyRow({ it, value, isToday, onSave, onHist }) {
+function DailyRow({ it, value, isToday, onSave, onHist, pd, before, last }) {
   const [draft, setDraft] = useState(value)
+  // 長押し（PCはドラッグ）で並べ替え。入力欄・ボタンからは始まらない
+  const dragCls = (pd.isDragging('daily', it.id) ? ' dragging' : '') + (before === it.id ? ' drop-before' : '') + (before === null && last ? ' drop-after' : '')
+  const dp = { 'data-id': it.id, onPointerDown: e => pd.press(e, { kind: 'daily', id: it.id }, e.currentTarget, `${it.icon} ${it.name}`) }
   const focused = useRef(false)
   useEffect(() => { if (!focused.current) setDraft(value) }, [value])
   const commit = v => { focused.current = false; const t = String(v).trim(); if (t !== value) onSave(t) }
   const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
   const suffix = it.kind === 'time' ? '（h:m）' : it.unit ? `（${it.unit}）` : ''
   if (it.kind === 'check') return html`
-    <li class=${'row drow chk' + (value === '1' ? ' has done' : '')}>
+    <li class=${'row drow chk' + (value === '1' ? ' has done' : '') + dragCls} ...${dp}>
       <span class="dic">${it.icon}</span>
       <${Check} done=${value === '1'} onToggle=${() => onSave(value === '1' ? '' : '1')} />
-      <span class="text" onClick=${() => onSave(value === '1' ? '' : '1')}>${it.name}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}</span>
+      <span class="text" onClick=${() => { if (!pd.consumeClick()) onSave(value === '1' ? '' : '1') }}>${it.name}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}</span>
       <button class="ricon" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
     </li>`
   const field = it.kind === 'check'
@@ -2009,7 +2026,7 @@ function DailyRow({ it, value, isToday, onSave, onHist }) {
         onFocus=${() => { focused.current = true }} onInput=${e => setDraft(e.target.value)} onBlur=${e => commit(e.target.value)}
         onKeyDown=${e => { if (isEnter(e)) e.target.blur() }} />`
   return html`
-    <li class=${'row drow' + (value ? ' has' : '')}>
+    <li class=${'row drow' + (value ? ' has' : '') + dragCls} ...${dp}>
       <span class="dic">${it.icon}</span>
       <div class="dmain"><small>${it.name}${suffix}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}</small>${field}</div>
       ${it.kind === 'time' && isToday && !value && html`<button class="chip nowbtn" title="今の時刻を記録" onClick=${() => onSave(nowHM())}>今</button>`}
@@ -2035,6 +2052,24 @@ function DailyView({ L }) {
     act.setValue(it.id, day, v)
   }
   const vis = items.filter(i => !i.hidden)
+  // 項目の並べ替え（スマホは長押し→ドラッグ、PCはそのままドラッグ）
+  const [before, setBefore] = useState(undefined)
+  const beforeRef = useRef(undefined)
+  const setB = b => { if (b === beforeRef.current) return; beforeRef.current = b; setBefore(b) }
+  const pd = usePointerDrag({
+    onMove: (x, y, dr) => {
+      const el = document.elementFromPoint(x, y)?.closest('.drow[data-id]')
+      if (!el) return
+      if (el.dataset.id === dr.id) return setB(undefined)
+      const r = el.getBoundingClientRect()
+      if (y < r.top + r.height / 2) return setB(el.dataset.id)
+      let n = el.nextElementSibling
+      while (n && n.dataset.id === dr.id) n = n.nextElementSibling
+      setB(n?.dataset.id ?? null)
+    },
+    onDrop: dr => { if (beforeRef.current !== undefined) act.reorderDaily(dr.id, beforeRef.current) },
+    onEnd: () => setB(undefined),
+  })
   return html`
     <${Dock}>
       <div class="dhead">
@@ -2046,8 +2081,10 @@ function DailyView({ L }) {
       </div>
     <//>
     <div class="ghead" style="margin-top:0"><span>${day === tk ? '今日の記録' : dayLabel(day)}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 項目</button></div>
-    ${vis.length ? html`<ul class="list">${vis.map(it => html`<${DailyRow} key=${it.id + day} it=${it} value=${vals[it.id] ?? ''} isToday=${day === tk} onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} />`)}</ul>`
+    ${vis.length ? html`<ul class=${'list dlist' + (pd.drag ? ' sorting' : '')}>${vis.map((it, i) => html`<${DailyRow} key=${it.id + day} it=${it} value=${vals[it.id] ?? ''} isToday=${day === tk}
+        onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} pd=${pd} before=${before} last=${i === vis.length - 1} />`)}</ul>`
       : html`<div class="empty list">表示する項目がありません。「⚙ 項目」から追加・表示できます。</div>`}
+    <${DragGhost} pd=${pd} cls="dghost" />
     ${hist && html`<${HistoryModal} L=${L} item=${hist.item} mode=${hist.mode} onClose=${() => setHist(null)} />`}
     ${settings && html`<${DailySettings} L=${L} onClose=${() => setSettings(false)} />`}`
 }
