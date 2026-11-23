@@ -1604,16 +1604,34 @@ function useLog(userId, notify) {
   return { actions, items, running, counts, version, ready, act }
 }
 
+const FOCUSABLE = 'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not([tabindex="-1"]), [tabindex="0"]'
 function Modal({ title, onClose, children }) {
+  const sheet = useRef()
   useEffect(() => {
-    const k = e => e.key === 'Escape' && onClose()
+    const k = e => {
+      if (e.key === 'Escape') return onClose()
+      // Tab は画面の中だけを巡回（最後→最初、最初→最後）
+      if (e.key !== 'Tab' || !sheet.current) return
+      const els = [...sheet.current.querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null)
+      if (!els.length) return
+      const first = els[0], last = els[els.length - 1], cur = document.activeElement
+      if (!sheet.current.contains(cur)) { e.preventDefault(); (e.shiftKey ? last : first).focus() }
+      else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus() }
+      else if (e.shiftKey && cur === first) { e.preventDefault(); last.focus() }
+    }
     document.addEventListener('keydown', k)
     return () => document.removeEventListener('keydown', k)
   }, [onClose])
+  // PC（マウス・キーボード）では開いたとき最初の入力欄にカーソルを置く。スマホはキーボードが勝手に出ないようにしない
+  useEffect(() => {
+    const s = sheet.current
+    if (!s || s.contains(document.activeElement) || !matchMedia('(pointer: fine)').matches) return
+    s.querySelector('input:not([type=hidden]):not([type=checkbox]):not([disabled]), select, textarea')?.focus()
+  }, [])
   return html`
     <div class="ovl" onClick=${e => e.target === e.currentTarget && onClose()}>
-      <div class="sheet" role="dialog" aria-modal="true" aria-label=${title}>
-        <div class="sheet-head"><h3>${title}</h3><button class="icon" aria-label="閉じる" onClick=${onClose}>×</button></div>
+      <div class="sheet" ref=${sheet} role="dialog" aria-modal="true" aria-label=${title}>
+        <div class="sheet-head"><h3>${title}</h3><button class="icon" tabindex="-1" aria-label="閉じる" title="閉じる（Esc）" onClick=${onClose}>×</button></div>
         ${children}
       </div>
     </div>`
