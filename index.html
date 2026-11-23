@@ -383,6 +383,12 @@ button.lrow:hover { background: var(--hover); }
 .lmain small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .ldur { font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; white-space: nowrap; }
 .lrow.live .ldur { color: var(--done); }
+.lrow.memo { gap: 8px; padding: 6px 6px 6px 12px; background: color-mix(in srgb, #f1c40f 7%, transparent); }
+.lic.memo-ic { --c: #f1c40f; width: 28px; height: 28px; font-size: 15px; border-radius: 8px; margin: 0 4px; }
+.memo-t { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; cursor: pointer; }
+.memo-in { display: flex; gap: 6px; margin-top: 8px; }
+.memo-in input { flex: 1; min-width: 0; }
+.memo-in .btn { flex: none; }
 .rep-nav { display: flex; align-items: center; gap: 4px; margin: 2px 0 10px; }
 .rep-nav strong { flex: 1; text-align: center; font-size: 16px; }
 .rep-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
@@ -1418,7 +1424,7 @@ function useLog(userId, notify) {
     let t
     const soon = () => { clearTimeout(t); t = setTimeout(load, 600) }
     const ch = sb.channel('tb-log-' + userId)
-    for (const table of ['tb_actions', 'tb_logs', 'tb_daily_items', 'tb_daily_values']) ch.on('postgres_changes', { event: '*', schema: 'public', table }, soon)
+    for (const table of ['tb_actions', 'tb_logs', 'tb_daily_items', 'tb_daily_values', 'tb_memos']) ch.on('postgres_changes', { event: '*', schema: 'public', table }, soon)
     ch.subscribe()
     const onVis = () => document.visibilityState === 'visible' && load()
     document.addEventListener('visibilitychange', onVis)
@@ -1476,8 +1482,26 @@ function useLog(userId, notify) {
           if (!fail(error)) load()
         })
       },
+      // 「今日の記録」に挟むメモ（created_at の時刻で記録の間に並ぶ）
+      async addMemo(content, at = now()) {
+        const { error } = await sb.from('tb_memos').insert({ id: uuid(), content, created_at: at, updated_at: now(), user_id: userId })
+        if (!fail(error)) bump()
+      },
+      async updateMemo(id, patch) {
+        const { error } = await sb.from('tb_memos').update({ ...patch, updated_at: now() }).eq('id', id)
+        if (!fail(error)) bump()
+      },
+      async deleteMemo(m) {
+        const { error } = await sb.from('tb_memos').delete().eq('id', m.id)
+        if (fail(error)) return
+        bump()
+        notifyRef.current('メモを削除しました', async () => {
+          const { error } = await sb.from('tb_memos').insert({ id: m.id, content: m.content, created_at: m.created_at, updated_at: now(), user_id: userId })
+          if (!fail(error)) bump()
+        })
+      },
       async addAction(v) {
-        const row = { id: uuid(), position: nextPos(actRef.current), archived: false, created_at: now(), ...v }
+        const row ={ id: uuid(), position: nextPos(actRef.current), archived: false, created_at: now(), ...v }
         setActions(p => [...p, row])
         const { error } = await sb.from('tb_actions').insert({ ...row, user_id: userId }); fail(error)
       },
@@ -1556,17 +1580,61 @@ const LogRow = ({ l, a, now, onClick }) => html`
     <span class="ldur">${hms(logMs(l, now))}</span>
   </button>`
 
-function RecordView({ L, openLog, openActions, newAction }) {
+// 「今日の記録」の間に挟むメモ。右端に記録日時と ••• メニュー
+function MemoRow({ m, columns, onEdit, onDelete, copyTo }) {
+  return html`
+    <div class="lrow memo">
+      <span class="lic memo-ic">📝</span>
+      <span class="lmain memo-t" role="button" tabindex="0" title="タップで編集" onClick=${() => onEdit(m)} onKeyDown=${e => e.key === 'Enter' && onEdit(m)}>${m.content}</span>
+      <time class="stamp" datetime=${m.created_at} title=${fmtFull(m.created_at).replace(' 作成', '')}>${fmtStamp(m.created_at)}</time>
+      <${DotMenu} label="メモのメニュー" render=${close => html`
+        <${MI} icon="✎" label="編集" onClick=${() => { close(); onEdit(m) }} />
+        <${MI} icon="📥" label="Inboxにコピー" onClick=${() => { close(); copyTo(m, null) }} />
+        <div class="msec">ボードにコピー</div>
+        ${columns.length === 0 && html`<div class="msec" style="font-weight:400">列がありません</div>`}
+        ${columns.map(c => html`<${MI} key=${c.id} icon="→" label=${c.title} onClick=${() => { close(); copyTo(m, c) }} />`)}
+        <div class="msep"></div>
+        <${MI} icon="🗑" label="削除" danger onClick=${() => { close(); onDelete(m) }} />`} />
+    </div>`
+}
+
+function MemoModal({ memo, onSave, onClose }) {
+  const [text, setText] = useState(memo.content)
+  const [at, setAt] = useState(toLocalInput(memo.created_at))
+  const ref = useRef()
+  useEffect(() => ref.current?.focus(), [])
+  const save = () => {
+    const t = text.trim(); if (!t) return
+    const d = new Date(at)
+    onSave({ content: t, ...(isNaN(d) ? {} : { created_at: d.toISOString() }) }); onClose()
+  }
+  return html`<${Modal} title="メモを編集" onClose=${onClose}>
+    <div class="field"><label>メモ</label><textarea ref=${ref} rows="4" value=${text} onInput=${e => setText(e.target.value)}></textarea></div>
+    <div class="field"><label>日時（記録の間の並び順もこの時刻で決まります）</label><input type="datetime-local" value=${at} onInput=${e => setAt(e.target.value)} /></div>
+    <div class="acts"><span class="grow"></span><button class="btn ghost" onClick=${onClose}>キャンセル</button><button class="btn" disabled=${!text.trim()} onClick=${save}>保存</button></div>
+  <//>`
+}
+
+function RecordView({ L, B, notify, openLog, openActions, newAction }) {
   const { actions, running, act, version } = L
   const now = useNow(1000)
   const ra = running && actions.find(a => a.id === running.action_id)
   const [today, setToday] = useState([])
+  const [memos, setMemos] = useState([])
+  const [memo, setMemo] = useState('')
+  const [editMemo, setEditMemo] = useState(null)
   useEffect(() => {
     let alive = true
     const s = startOfDay(new Date())
     fetchLogs(s, addDays(s, 1)).then(d => alive && setToday(d)).catch(() => {})
+    sb.from('tb_memos').select('*').gte('created_at', s.toISOString()).lt('created_at', addDays(s, 1).toISOString()).order('created_at', { ascending: false })
+      .then(({ data }) => alive && data && setMemos(data))
     return () => { alive = false }
   }, [version])
+  const addMemo = e => { e.preventDefault(); const t = memo.trim(); if (!t) return; setMemo(''); act.addMemo(t) }
+  const copyTo = (m, col) => { B.act.addItem(m.content, col ? col.id : null); notify(col ? `ボードの「${col.title}」にコピーしました` : 'Inboxにコピーしました') }
+  // 記録とメモを時刻の新しい順に混ぜて並べる
+  const timeline = [...today.map(l => ({ t: l.started_at, l })), ...memos.map(m => ({ t: m.created_at, m }))].sort((a, b) => (a.t < b.t ? 1 : -1))
   const byId = Object.fromEntries(actions.map(a => [a.id, a]))
   const newLog = () => { const e = new Date(), s = new Date(e - 60 * 60000); openLog({ started_at: s.toISOString(), ended_at: e.toISOString() }) }
 
@@ -1602,6 +1670,11 @@ function RecordView({ L, openLog, openActions, newAction }) {
         <button class="stop" aria-label="記録を止める" title="止める" onClick=${act.stop}><i></i></button>`
       : html`<div class="now-idle">記録中の行動はありません<small>アクションをタップすると記録が始まります（長押し・ドラッグで並べ替え）</small></div>`}
     </section>
+    <form class="memo-in" onSubmit=${addMemo}>
+      <input value=${memo} placeholder="📝 メモ（今の時刻で記録の間に入ります）" aria-label="メモ" enterkeyhint="done"
+        onInput=${e => setMemo(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229)) e.preventDefault() }} />
+      <button class="btn" disabled=${!memo.trim()}>メモ</button>
+    </form>
     <div class=${'agrid' + (pd.drag ? ' sorting' : '')}>
       ${vis.map((a, i) => html`
         <button key=${a.id} data-id=${a.id} data-drag
@@ -1616,8 +1689,11 @@ function RecordView({ L, openLog, openActions, newAction }) {
     <//>
     <${DragGhost} pd=${pd} cls="aghost" />
     <div class="ghead"><span>今日の記録</span><span class="chips"><button class="chip" onClick=${newLog}>＋ あとから記録</button><button class="chip" onClick=${openActions}>⚙ 編集</button></span></div>
-    ${today.length ? html`<div class="list">${today.map(l => html`<${LogRow} key=${l.id} l=${l} a=${byId[l.action_id]} now=${now} onClick=${() => openLog(l)} />`)}</div>`
-      : html`<div class="empty list">今日の記録はまだありません。付け忘れたときは「＋ あとから記録」で追加できます。</div>`}`
+    ${timeline.length ? html`<div class="list">${timeline.map(x => x.l
+        ? html`<${LogRow} key=${x.l.id} l=${x.l} a=${byId[x.l.action_id]} now=${now} onClick=${() => openLog(x.l)} />`
+        : html`<${MemoRow} key=${x.m.id} m=${x.m} columns=${B.columns} onEdit=${setEditMemo} onDelete=${act.deleteMemo} copyTo=${copyTo} />`)}</div>`
+      : html`<div class="empty list">今日の記録はまだありません。付け忘れたときは「＋ あとから記録」で追加できます。</div>`}
+    ${editMemo && html`<${MemoModal} memo=${editMemo} onSave=${p => act.updateMemo(editMemo.id, p)} onClose=${() => setEditMemo(null)} />`}`
 }
 
 function Donut({ parts, total, center }) {
@@ -2216,7 +2292,7 @@ function LogView({ L, B, sub }) {
   return html`
     <main class="logv">
       ${!L.ready ? html`<div class="empty">読み込み中…</div>`
-        : sub === 'record' ? html`<${RecordView} L=${L} openLog=${setEditLog} openActions=${() => setActionsOpen(true)} newAction=${() => setNewAct(true)} />`
+        : sub === 'record' ? html`<${RecordView} L=${L} B=${B} notify=${B.notify} openLog=${setEditLog} openActions=${() => setActionsOpen(true)} newAction=${() => setNewAct(true)} />`
         : sub === 'daily' ? html`<${DailyView} L=${L} />`
         : sub === 'habit' ? html`<${HabitView} L=${L} />`
         : html`<${ReportView} L=${L} B=${B} openLog=${setEditLog} />`}
@@ -2269,7 +2345,7 @@ function Main({ session }) {
         <div class="msep"></div>
         <${MI} icon="⎋" label="ログアウト" onClick=${() => { close(); sb.auth.signOut() }} />`} />
     </header>
-    ${tab !== 'inbox' && tab !== 'board' ? html`<${LogView} key=${tab} L=${log} B=${{ items, categories }} sub=${tab} />`
+    ${tab !== 'inbox' && tab !== 'board' ? html`<${LogView} key=${tab} L=${log} B=${{ items, categories, columns, act, notify }} sub=${tab} />`
       : loading ? html`<div class="empty">読み込み中…</div>`
       : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} categories=${categories} act=${act} openDetail=${setDetailId} />`
       : html`<${Board} items=${items} columns=${columns} categories=${categories} act=${act} openDetail=${setDetailId} openCats=${() => setCatsOpen(true)} />`}
