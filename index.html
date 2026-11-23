@@ -75,7 +75,7 @@ input { font: inherit; color: inherit; font-size: 16px; } /* 16px未満だとiPh
 }
 .dots:hover, .dots[aria-expanded="true"] { background: var(--panel2); color: var(--text); }
 .menu {
-  position: fixed; z-index: 100; min-width: 210px; max-width: calc(100vw - 16px); max-height: 65vh; overflow: auto;
+  position: fixed; z-index: 300; min-width: 210px; max-width: calc(100vw - 16px); max-height: 65vh; overflow: auto;
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: var(--menu-shadow); padding: 5px; animation: pop .1s ease-out;
 }
@@ -181,6 +181,142 @@ input { font: inherit; color: inherit; font-size: 16px; } /* 16px未満だとiPh
   .tabs button { padding: 5px 11px; }
   .brand span { display: none; }
 }
+
+/* ---- action log ---- */
+.logv { max-width: 760px; margin: 0 auto; padding: 12px max(12px, env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.logtabs { display: flex; width: 100%; margin-bottom: 12px; }
+.logtabs button { flex: 1; padding: 6px 0; font-size: 14px; }
+.runic { font-size: 14px; line-height: 1; animation: blink 2s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.now {
+  display: flex; align-items: center; gap: 14px; padding: 18px 16px; min-height: 104px;
+  border-radius: 16px; background: var(--panel); border: 1px solid var(--border);
+}
+.now.on { background: var(--c); background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 62%, #000)); color: #fff; border-color: transparent; }
+.now-ic { font-size: 42px; line-height: 1; flex: none; }
+.now-main { flex: 1; min-width: 0; }
+.now-name { font-size: 14px; font-weight: 700; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.now-name small { opacity: .85; font-weight: 500; font-size: 12px; }
+.now-time { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .5px; line-height: 1.1; }
+.stop { width: 54px; height: 54px; flex: none; border-radius: 50%; border: 3px solid #fff; color: #fff; display: grid; place-items: center; }
+.stop i { width: 16px; height: 16px; border-radius: 3px; background: #fff; }
+.stop:active { transform: scale(.94); }
+.now-idle { width: 100%; text-align: center; color: var(--muted); }
+.now-idle small { display: block; font-size: 12px; margin-top: 4px; }
+.agrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 8px; margin-top: 12px; }
+.abtn {
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 12px 4px 9px; min-width: 0;
+  background: var(--panel); border: 1px solid var(--border); border-bottom: 3px solid var(--c); border-radius: 12px;
+  transition: transform .08s;
+}
+.abtn:hover { background: var(--hover); }
+.abtn:active { transform: scale(.96); }
+.abtn .aic { font-size: 28px; line-height: 1; }
+.abtn .an { font-size: 13px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.abtn.on { background: var(--c); border-color: var(--c); color: #fff; }
+.lrow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 8px 12px; border-top: 1px solid var(--border); }
+.lrow:first-child { border-top: 0; }
+button.lrow:hover { background: var(--hover); }
+.lic { width: 36px; height: 36px; flex: none; border-radius: 10px; display: grid; place-items: center; font-size: 20px; background: color-mix(in srgb, var(--c) 20%, transparent); }
+.lmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lmain b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lmain small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ldur { font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; white-space: nowrap; }
+.lrow.live .ldur { color: var(--done); }
+.rep-nav { display: flex; align-items: center; gap: 4px; margin: 2px 0 10px; }
+.rep-nav strong { flex: 1; text-align: center; font-size: 16px; }
+.rep-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.rep-top { display: grid; gap: 14px; align-items: center; }
+@media (min-width: 640px) { .rep-top { grid-template-columns: 220px 1fr; } }
+.donut { width: 100%; max-width: 210px; margin: 0 auto; display: block; }
+.donut .d-l { font-size: 12px; fill: var(--muted); }
+.donut .d-v { font-size: 22px; font-weight: 800; fill: var(--text); }
+.lg { display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 8px; align-items: center; padding: 5px 0; }
+.lg .nm { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg .v { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.lg .v b { color: var(--text); font-size: 14px; }
+.lg .bar { grid-column: 2 / 4; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
+.lg .bar i { display: block; height: 100%; background: var(--c); border-radius: 3px; }
+.rep-acts { display: flex; gap: 8px; margin: 12px 0 4px; }
+.rep-acts .btn { flex: 1; }
+.btn.sub { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+.btn.danger { background: transparent; color: var(--danger); }
+
+/* daily */
+.dhead { display: flex; align-items: center; gap: 4px; margin: 2px 0 10px; }
+.ddate { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+.dnum { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.dsub { font-size: 12px; line-height: 1.3; color: var(--muted); font-weight: 600; }
+.drow { gap: 8px; padding: 6px 6px 6px 10px; }
+.dic { width: 30px; text-align: center; font-size: 22px; flex: none; }
+.dmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dmain small { font-size: 12px; color: var(--muted); }
+.dval { width: 100%; border: 0; outline: none; background: transparent; padding: 1px 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); min-height: 30px; }
+.dval::placeholder { color: var(--border); }
+.dval:focus { color: var(--accent); }
+.dval.k-text { font-size: 16px; font-weight: 500; }
+.dval.k-time { max-width: 140px; }
+.drow:not(.has) .dval.k-time:not(:focus) { color: var(--muted); }
+.nowbtn { flex: none; }
+.ricon { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 1.5px solid var(--border); color: var(--accent); font-size: 15px; display: grid; place-items: center; }
+.ricon:hover { background: var(--accent-weak); border-color: var(--accent); }
+.lchart { width: 100%; display: block; }
+.lchart .grid { stroke: var(--border); stroke-width: 1; }
+.lchart .avg { stroke: var(--done); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.lchart .ln { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.lchart .dot { fill: var(--accent); }
+.lchart .ax { font-size: 10px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.stats b { color: var(--text); font-size: 14px; }
+.list.hist .lrow { padding: 8px 12px; }
+
+/* habit */
+.hgrid { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 6px 8px; }
+.hrow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(7, 34px); gap: 3px; align-items: center; padding: 5px 0; border-top: 1px solid var(--border); }
+.hrow.hhead { border-top: 0; padding: 2px 0 4px; }
+.hd { text-align: center; font-size: 11px; color: var(--muted); font-weight: 700; line-height: 1.2; }
+.hd b { display: block; font-size: 14px; color: var(--text); }
+.hd.sun { color: #e5484d; } .hd.sat { color: #3e7bfa; }
+.hd.today b { color: #fff; background: var(--accent); border-radius: 50%; width: 24px; height: 24px; line-height: 24px; margin: 1px auto 0; }
+.hname { display: flex; align-items: center; gap: 6px; min-width: 0; text-align: left; padding: 2px 4px 2px 0; }
+.hic { font-size: 20px; flex: none; }
+.hn { display: flex; flex-direction: column; min-width: 0; }
+.hn b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hn small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hn small.ok { color: var(--done); font-weight: 700; }
+.hcell { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--border); color: #fff; font-weight: 800; font-size: 15px; justify-self: center; transition: background .1s, border-color .1s; }
+.hcell:hover:not(:disabled) { border-color: var(--done); }
+.hcell.today { border-color: var(--accent); }
+.hcell.on { background: var(--done); border-color: var(--done); }
+.hcell:disabled { opacity: .3; cursor: default; }
+.hcell:active:not(:disabled) { transform: scale(.9); }
+@media (max-width: 520px) {
+  /* スマホでは習慣名を1行使って表示し、その下に7日分のマスを並べる */
+  .hrow { grid-template-columns: repeat(7, 1fr); row-gap: 4px; padding: 8px 0; }
+  .hrow > .hname { grid-column: 1 / -1; }
+  .hrow.hhead > span:first-child { display: none; }
+  .hn { flex-direction: row; align-items: baseline; gap: 8px; }
+  .hcell { width: 38px; height: 38px; }
+}
+
+/* modal */
+.ovl { position: fixed; inset: 0; z-index: 150; background: rgba(9,30,66,.45); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fade .12s; }
+@keyframes fade { from { opacity: 0; } }
+.sheet { width: 100%; max-width: 440px; max-height: 90dvh; overflow: auto; background: var(--panel); border-radius: 14px; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: var(--menu-shadow); }
+@media (max-width: 640px) { .ovl { align-items: flex-end; padding: 0; } .sheet { max-width: none; border-radius: 16px 16px 0 0; } }
+.sheet-head { display: flex; align-items: center; margin-bottom: 10px; }
+.sheet-head h3 { flex: 1; font-size: 16px; }
+.field select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 16px; }
+.field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.icgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; }
+.icgrid button { font-size: 22px; height: 40px; border-radius: 8px; }
+.icgrid button:hover { background: var(--hover); }
+.icgrid button.on { background: var(--accent-weak); outline: 2px solid var(--accent); }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatches button { width: 30px; height: 30px; border-radius: 50%; background: var(--c); }
+.swatches button.on { outline: 3px solid var(--text); outline-offset: 2px; }
+.sheet .acts { display: flex; gap: 8px; margin-top: 16px; }
+.sheet .acts .grow { flex: 1; }
 
 /* ---- toast ---- */
 .toast {
@@ -631,6 +767,684 @@ function Board({ items, columns, act, drag, setDrag }) {
     </main>`
 }
 
+/* ================= action log + daily ================= */
+const PALETTE = ['#2ecc71', '#3498db', '#9b59b6', '#34495e', '#e67e22', '#e74c3c', '#1abc9c', '#f1c40f', '#e84393', '#0984e3', '#00b894', '#7f8c8d']
+const ICONS = ['💼', '📚', '😴', '🚃', '🍴', '☕', '🏠', '🎮', '🏃', '🧘', '🛁', '🛒', '💻', '📞', '🧹', '🎵', '🚗', '🚶', '👶', '💊', '🍺', '📺', '✈️', '🏥', '🐶', '🍳', '✍️', '🎨', '🧠', '📒', '📝', '🚬', '⏰', '🪥', '👔', '💇', '🚪', '🛗', '🚆', '🌤️', '🌡️', '⚖️', '✅', '🙏', '⭐', '⏱️']
+// 「ざっくり」付ける前提の初期アクション
+const DEFAULT_ACTIONS = [['仕事', '💼', '#2ecc71'], ['勉強', '📚', '#3498db'], ['睡眠', '😴', '#34495e'], ['移動', '🚃', '#9b59b6'], ['食事', '🍴', '#e67e22'], ['休憩', '☕', '#1abc9c'], ['準備・家事', '🏠', '#f1c40f'], ['趣味', '🎮', '#e84393']]
+const DAILY_KINDS = { time: '時刻（h:m）', number: '数値', text: 'テキスト', check: 'チェック' }
+const DEFAULT_DAILY = [['起床', '⏰', 'time'], ['朝食', '🍳', 'time'], ['洗面台', '🪥', 'time'], ['着替え', '👔', 'time'], ['整髪', '💇', 'time'], ['出発直前', '🚪', 'time'], ['エレベーター', '🛗', 'time'], ['電車（行き）', '🚆', 'time'], ['睡眠時間', '😴', 'number', '時間'], ['メモ', '📝', 'text']]
+const DEFAULT_HABITS = [['筋トレ', '💪', 3], ['ウォーキング', '🚶', 5], ['英語リスニング', '🎧', 5]]
+const UNTRACKED = '#c1c7d0'
+
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
+const hms = ms => { const s = Math.floor(Math.max(0, ms) / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}` }
+const hm = ms => { const m = Math.round(Math.max(0, ms) / 60000); return `${Math.floor(m / 60)}:${pad(m % 60)}` }
+const clock = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+const md = iso => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}` }
+const toLocalInput = iso => { const d = new Date(iso); return `${dayKey(d)}T${clock(iso)}` }
+const fmtDT = iso => { const d = new Date(iso); return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${clock(iso)}` }
+const logMs = (l, now = Date.now()) => (l.ended_at ? Date.parse(l.ended_at) : now) - Date.parse(l.started_at)
+const logRange = l => `${md(l.started_at)} ${clock(l.started_at)} - ${l.ended_at ? `${md(l.ended_at)} ${clock(l.ended_at)}` : '記録中'}`
+const nextPos = list => (list.length ? Math.max(...list.map(x => x.position)) + 1 : 0)
+const hmToMin = v => { const m = /^(\d{1,2}):(\d{2})/.exec(v || ''); return m ? +m[1] * 60 + +m[2] : null }
+const minToHm = v => { const m = Math.round(v); return `${Math.floor(m / 60)}:${pad(((m % 60) + 60) % 60)}` }
+
+function useNow(ms = 1000) {
+  const [n, setN] = useState(Date.now())
+  useEffect(() => { const t = setInterval(() => setN(Date.now()), ms); return () => clearInterval(t) }, [ms])
+  return n
+}
+async function fetchAll(build) {
+  const out = []
+  for (let off = 0; ; off += 1000) {
+    const { data, error } = await build().range(off, off + 999)
+    if (error) throw error
+    out.push(...data)
+    if (data.length < 1000) return out
+  }
+}
+// 期間 [from, to) に少しでも重なる記録を返す（日付をまたぐ睡眠なども両方の日に出す）
+const fetchLogs = async (from, to) => {
+  const rows = await fetchAll(() => sb.from('tb_logs').select('*').gte('started_at', addDays(from, -2).toISOString()).lt('started_at', to.toISOString()).order('started_at', { ascending: false }))
+  return rows.filter(l => (l.ended_at ? Date.parse(l.ended_at) : Date.now()) > from.getTime())
+}
+// 期間内に収まる部分だけの長さ
+const overlapMs = (l, from, to, now = Date.now()) => Math.max(0, Math.min(l.ended_at ? Date.parse(l.ended_at) : now, to.getTime()) - Math.max(Date.parse(l.started_at), from.getTime()))
+
+function useLog(userId, notify) {
+  const [actions, setActions] = useState([])
+  const [items, setItems] = useState([])
+  const [running, setRunning] = useState(null)
+  const [counts, setCounts] = useState({})
+  const [version, setVersion] = useState(0)
+  const [ready, setReady] = useState(false)
+  const runRef = useRef(running); runRef.current = running
+  const actRef = useRef(actions); actRef.current = actions
+  const itemsRef = useRef(items); itemsRef.current = items
+  const notifyRef = useRef(notify); notifyRef.current = notify
+
+  const load = useCallback(async () => {
+    const [ar, rr, ir, cr] = await Promise.all([
+      sb.from('tb_actions').select('*').order('position'),
+      sb.from('tb_logs').select('*').is('ended_at', null).limit(1),
+      sb.from('tb_daily_items').select('*').order('position'),
+      sb.rpc('tb_action_counts'),
+    ])
+    const err = ar.error || rr.error || ir.error
+    if (err) { notifyRef.current('ログの読み込みに失敗しました: ' + err.message); setReady(true); return }
+    let acts = ar.data, its = ir.data
+    const seed = async (table, key, rows, cur) => {
+      if (cur.length || localStorage.getItem(key)) return cur
+      localStorage.setItem(key, '1')
+      const { data } = await sb.from(table).insert(rows).select()
+      return data || []
+    }
+    acts = await seed('tb_actions', 'tb_actions_seeded_' + userId,
+      DEFAULT_ACTIONS.map(([name, icon, color], i) => ({ id: uuid(), user_id: userId, name, icon, color, position: i })), acts)
+    its = await seed('tb_daily_items', 'tb_daily_seeded_' + userId,
+      DEFAULT_DAILY.map(([name, icon, kind, unit], i) => ({ id: uuid(), user_id: userId, name, icon, kind, unit: unit || '', position: i })), its)
+    if (!its.some(i => i.kind === 'habit')) {
+      const added = await seed('tb_daily_items', 'tb_habits_seeded_' + userId,
+        DEFAULT_HABITS.map(([name, icon, target], i) => ({ id: uuid(), user_id: userId, name, icon, kind: 'habit', target, unit: '', position: 100 + i })), [])
+      its = [...its, ...added]
+    }
+    const byPos = (a, b) => a.position - b.position
+    setActions([...acts].sort(byPos)); setItems([...its].sort(byPos)); setRunning(rr.data[0] || null)
+    if (!cr.error) setCounts(Object.fromEntries((cr.data || []).map(r => [r.action_id, Number(r.n)])))
+    setVersion(v => v + 1); setReady(true)
+  }, [userId])
+
+  useEffect(() => {
+    load()
+    let t
+    const soon = () => { clearTimeout(t); t = setTimeout(load, 600) }
+    const ch = sb.channel('tb-log-' + userId)
+    for (const table of ['tb_actions', 'tb_logs', 'tb_daily_items', 'tb_daily_values']) ch.on('postgres_changes', { event: '*', schema: 'public', table }, soon)
+    ch.subscribe()
+    const onVis = () => document.visibilityState === 'visible' && load()
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearTimeout(t); sb.removeChannel(ch); document.removeEventListener('visibilitychange', onVis) }
+  }, [load])
+
+  const act = useMemo(() => {
+    const now = () => new Date().toISOString()
+    const fail = e => { if (e) { notifyRef.current('保存に失敗しました: ' + e.message); load() } return !!e }
+    const bump = () => setVersion(v => v + 1)
+    const inc = (id, d) => setCounts(c => ({ ...c, [id]: Math.max(0, (c[id] || 0) + d) }))
+    const swap = async (table, list, setList, id, dir) => {
+      const i = list.findIndex(x => x.id === id), j = i + dir
+      if (i < 0 || j < 0 || j >= list.length) return
+      const A = list[i], B = list[j]
+      let pa = B.position, pb = A.position
+      if (pa === pb) { pa = j; pb = i }
+      setList(p => p.map(x => (x.id === A.id ? { ...x, position: pa } : x.id === B.id ? { ...x, position: pb } : x)).sort((x, y) => x.position - y.position))
+      const r = await Promise.all([sb.from(table).update({ position: pa }).eq('id', A.id), sb.from(table).update({ position: pb }).eq('id', B.id)])
+      fail(r[0].error || r[1].error)
+    }
+    return {
+      // アクションをタップ → 記録中のものを終了して新しく開始
+      async start(action) {
+        const cur = runRef.current
+        if (cur && cur.action_id === action.id) return
+        const t = now(), log = { id: uuid(), action_id: action.id, started_at: t, ended_at: null }
+        setRunning(log); inc(action.id, 1)
+        const r1 = await sb.from('tb_logs').update({ ended_at: t }).is('ended_at', null)
+        if (fail(r1.error)) return
+        const { error } = await sb.from('tb_logs').insert({ ...log, user_id: userId })
+        if (!fail(error)) bump()
+      },
+      async stop() {
+        if (!runRef.current) return
+        setRunning(null)
+        const { error } = await sb.from('tb_logs').update({ ended_at: now() }).is('ended_at', null)
+        if (!fail(error)) bump()
+      },
+      async addLog(l) {
+        const { error } = await sb.from('tb_logs').insert({ id: uuid(), ...l, user_id: userId })
+        if (!fail(error)) { inc(l.action_id, 1); bump() }
+      },
+      async updateLog(id, patch) {
+        const { error } = await sb.from('tb_logs').update(patch).eq('id', id)
+        if (!fail(error)) load()
+      },
+      async deleteLog(l) {
+        if (runRef.current?.id === l.id) setRunning(null)
+        const { error } = await sb.from('tb_logs').delete().eq('id', l.id)
+        if (fail(error)) return
+        inc(l.action_id, -1); bump()
+        notifyRef.current('記録を削除しました', async () => {
+          const { error } = await sb.from('tb_logs').insert({ id: l.id, action_id: l.action_id, started_at: l.started_at, ended_at: l.ended_at, user_id: userId })
+          if (!fail(error)) load()
+        })
+      },
+      async addAction(v) {
+        const row = { id: uuid(), position: nextPos(actRef.current), archived: false, created_at: now(), ...v }
+        setActions(p => [...p, row])
+        const { error } = await sb.from('tb_actions').insert({ ...row, user_id: userId }); fail(error)
+      },
+      async updateAction(id, patch) {
+        setActions(p => p.map(x => (x.id === id ? { ...x, ...patch } : x)))
+        const { error } = await sb.from('tb_actions').update(patch).eq('id', id); fail(error)
+      },
+      moveAction: (id, dir) => swap('tb_actions', actRef.current.filter(x => !x.archived), setActions, id, dir),
+      async deleteAction(x) {
+        setActions(p => p.filter(y => y.id !== x.id))
+        if (runRef.current?.action_id === x.id) setRunning(null)
+        const { error } = await sb.from('tb_actions').delete().eq('id', x.id)
+        if (!fail(error)) load()
+      },
+      async addDaily(v) {
+        const row = { id: uuid(), position: nextPos(itemsRef.current), hidden: false, created_at: now(), ...v }
+        setItems(p => [...p, row])
+        const { error } = await sb.from('tb_daily_items').insert({ ...row, user_id: userId }); fail(error)
+      },
+      async updateDaily(id, patch) {
+        setItems(p => p.map(x => (x.id === id ? { ...x, ...patch } : x)))
+        const { error } = await sb.from('tb_daily_items').update(patch).eq('id', id); fail(error)
+      },
+      moveDaily: (id, dir, habit) => swap('tb_daily_items', itemsRef.current.filter(x => (x.kind === 'habit') === !!habit), setItems, id, dir),
+      async deleteDaily(x) {
+        setItems(p => p.filter(y => y.id !== x.id))
+        const { error } = await sb.from('tb_daily_items').delete().eq('id', x.id); if (!fail(error)) bump()
+      },
+      async setValue(itemId, day, value) {
+        const { error } = value === ''
+          ? await sb.from('tb_daily_values').delete().eq('item_id', itemId).eq('day', day)
+          : await sb.from('tb_daily_values').upsert({ user_id: userId, item_id: itemId, day, value, updated_at: now() }, { onConflict: 'item_id,day' })
+        if (!fail(error)) bump()
+      },
+    }
+  }, [userId, load])
+
+  return { actions, items, running, counts, version, ready, act }
+}
+
+function Modal({ title, onClose, children }) {
+  useEffect(() => {
+    const k = e => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', k)
+    return () => document.removeEventListener('keydown', k)
+  }, [onClose])
+  return html`
+    <div class="ovl" onClick=${e => e.target === e.currentTarget && onClose()}>
+      <div class="sheet" role="dialog" aria-modal="true" aria-label=${title}>
+        <div class="sheet-head"><h3>${title}</h3><button class="icon" aria-label="閉じる" onClick=${onClose}>×</button></div>
+        ${children}
+      </div>
+    </div>`
+}
+
+function IconPicker({ value, onChange }) {
+  return html`
+    <div class="icgrid">${ICONS.map(ic => html`<button type="button" class=${ic === value ? 'on' : ''} onClick=${() => onChange(ic)}>${ic}</button>`)}</div>
+    <input style="margin-top:8px" value=${value} maxlength="8" aria-label="アイコンを直接入力" placeholder="絵文字や文字を直接入力" onInput=${e => onChange(e.target.value)} />`
+}
+
+const LogRow = ({ l, a, now, onClick }) => html`
+  <button class=${'lrow' + (l.ended_at ? '' : ' live')} onClick=${onClick}>
+    <span class="lic" style=${`--c:${a?.color || UNTRACKED}`}>${a?.icon || '？'}</span>
+    <span class="lmain"><b>${a?.name || '（削除されたアクション）'}</b><small>${logRange(l)}</small></span>
+    <span class="ldur">${hms(logMs(l, now))}</span>
+  </button>`
+
+function RecordView({ L, openLog, openActions }) {
+  const { actions, running, act, version } = L
+  const now = useNow(1000)
+  const ra = running && actions.find(a => a.id === running.action_id)
+  const [today, setToday] = useState([])
+  useEffect(() => {
+    let alive = true
+    const s = startOfDay(new Date())
+    fetchLogs(s, addDays(s, 1)).then(d => alive && setToday(d)).catch(() => {})
+    return () => { alive = false }
+  }, [version])
+  const byId = Object.fromEntries(actions.map(a => [a.id, a]))
+  const newLog = () => { const e = new Date(), s = new Date(e - 60 * 60000); openLog({ started_at: s.toISOString(), ended_at: e.toISOString() }) }
+  return html`
+    <section class=${'now' + (ra ? ' on' : '')} style=${ra ? `--c:${ra.color}` : ''}>
+      ${running ? html`
+        <div class="now-ic">${ra?.icon || '⏱️'}</div>
+        <div class="now-main">
+          <div class="now-name">${ra?.name || '記録中'}
+            <small><button style="color:inherit;text-decoration:underline" title="開始時刻を修正" onClick=${() => openLog(running)}>${clock(running.started_at)} から ✎</button></small></div>
+          <div class="now-time">${hms(now - Date.parse(running.started_at))}</div>
+        </div>
+        <button class="stop" aria-label="記録を止める" title="止める" onClick=${act.stop}><i></i></button>`
+      : html`<div class="now-idle">記録中の行動はありません<small>下のアクションをタップすると記録が始まります（別のアクションをタップすると自動で切り替わります）</small></div>`}
+    </section>
+    <div class="ghead"><span>タップで開始・切り替え</span><button class="chip" onClick=${openActions}>⚙ 編集</button></div>
+    <div class="agrid" style="margin-top:0">
+      ${actions.filter(a => !a.archived).map(a => html`
+        <button key=${a.id} class=${'abtn' + (running?.action_id === a.id ? ' on' : '')} style=${`--c:${a.color}`} onClick=${() => act.start(a)}>
+          <span class="aic">${a.icon}</span><span class="an">${a.name}</span>
+        </button>`)}
+    </div>
+    <div class="ghead"><span>今日の記録</span><button class="chip" onClick=${newLog}>＋ あとから記録</button></div>
+    ${today.length ? html`<div class="list">${today.map(l => html`<${LogRow} key=${l.id} l=${l} a=${byId[l.action_id]} now=${now} onClick=${() => openLog(l)} />`)}</div>`
+      : html`<div class="empty list">今日の記録はまだありません。付け忘れたときは「＋ あとから記録」で追加できます。</div>`}`
+}
+
+function Donut({ parts, total, center }) {
+  const R = 70, C = 2 * Math.PI * R
+  let acc = 0
+  return html`
+    <svg class="donut" viewBox="0 0 200 200" role="img" aria-label="内訳のグラフ">
+      <circle cx="100" cy="100" r=${R} fill="none" stroke="var(--panel2)" stroke-width="34" />
+      ${parts.map(p => {
+        const len = total ? (p.ms / total) * C : 0
+        const el = html`<circle cx="100" cy="100" r=${R} fill="none" stroke=${p.color} stroke-width="34"
+          stroke-dasharray=${`${len} ${C - len}`} stroke-dashoffset=${-acc} transform="rotate(-90 100 100)" />`
+        acc += len
+        return el
+      })}
+      <text x="100" y="94" text-anchor="middle" class="d-l">${center[0]}</text>
+      <text x="100" y="120" text-anchor="middle" class="d-v">${center[1]}</text>
+    </svg>`
+}
+
+function ReportView({ L, openLog }) {
+  const { actions, version } = L
+  const [mode, setMode] = useLS('tb_rep_mode', 'day')
+  const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
+  const [logs, setLogs] = useState(null)
+  const now = useNow(30000)
+  const { from, to, label } = useMemo(() => {
+    const a = anchor
+    if (mode === 'week') { const f = addDays(a, -((a.getDay() + 6) % 7)), t = addDays(f, 7), e = addDays(t, -1); return { from: f, to: t, label: `${f.getMonth() + 1}/${f.getDate()}(${WD[f.getDay()]}) 〜 ${e.getMonth() + 1}/${e.getDate()}(${WD[e.getDay()]})` } }
+    if (mode === 'month') { const f = new Date(a.getFullYear(), a.getMonth(), 1); return { from: f, to: new Date(a.getFullYear(), a.getMonth() + 1, 1), label: `${f.getFullYear()}年${f.getMonth() + 1}月` } }
+    return { from: a, to: addDays(a, 1), label: `${a.getFullYear()}年${a.getMonth() + 1}月${a.getDate()}日(${WD[a.getDay()]})` }
+  }, [mode, anchor])
+  useEffect(() => {
+    let alive = true
+    setLogs(null)
+    fetchLogs(from, to).then(d => alive && setLogs(d)).catch(() => alive && setLogs([]))
+    return () => { alive = false }
+  }, [from.getTime(), to.getTime(), version])
+  const shift = dir => setAnchor(mode === 'day' ? addDays(anchor, dir) : mode === 'week' ? addDays(anchor, 7 * dir) : new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1))
+
+  const byId = Object.fromEntries(actions.map(a => [a.id, a]))
+  const totals = {}
+  for (const l of logs || []) totals[l.action_id] = (totals[l.action_id] || 0) + overlapMs(l, from, to, now)
+  const parts = Object.entries(totals).map(([id, ms]) => ({ id, ms, a: byId[id], color: byId[id]?.color || UNTRACKED })).sort((x, y) => y.ms - x.ms)
+  const tracked = parts.reduce((s, p) => s + p.ms, 0)
+  // 「日」表示では、記録のない時間を「未記録」として見せる（付け忘れに気づけるように）
+  const span = Math.min(to, Math.max(from, now)) - from
+  const untracked = mode === 'day' ? Math.max(0, span - tracked) : 0
+  const chartParts = untracked > 60000 ? [...parts, { id: '_none', ms: untracked, color: UNTRACKED }] : parts
+  const chartTotal = tracked + (untracked > 60000 ? untracked : 0)
+
+  const exportCsv = () => {
+    const rows = [['日付', 'アクション', '開始', '終了', '時間(分)']]
+    for (const l of [...(logs || [])].reverse()) rows.push([dayKey(l.started_at), byId[l.action_id]?.name ?? '', fmtDT(l.started_at), l.ended_at ? fmtDT(l.ended_at) : '記録中', Math.round(logMs(l) / 60000)])
+    const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const el = document.createElement('a'); el.href = url; el.download = `行動ログ_${dayKey(from)}_${mode}.csv`; el.click()
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  }
+  const newLog = () => { const e = mode === 'day' && dayKey(anchor) !== todayKey() ? new Date(anchor.getTime() + 12 * 3600000) : new Date(); openLog({ started_at: new Date(e - 3600000).toISOString(), ended_at: e.toISOString() }) }
+
+  return html`
+    <div class="toolbar" style="margin-top:0">
+      <div class="seg">${[['day', '日'], ['week', '週'], ['month', '月']].map(([k, l]) => html`<button class=${mode === k ? 'on' : ''} onClick=${() => setMode(k)}>${l}</button>`)}</div>
+    </div>
+    <div class="rep-nav">
+      <button class="icon" aria-label="前へ" onClick=${() => shift(-1)}>‹</button>
+      <strong>${label}</strong>
+      <button class="icon" aria-label="次へ" onClick=${() => shift(1)}>›</button>
+      <button class="chip" onClick=${() => setAnchor(startOfDay(new Date()))}>今日</button>
+    </div>
+    <div class="rep-card">
+      ${logs === null ? html`<div class="empty">読み込み中…</div>` : !parts.length ? html`<div class="empty">この期間の記録はありません</div>` : html`
+        <div class="rep-top">
+          <${Donut} parts=${chartParts} total=${chartTotal} center=${['記録 合計', hm(tracked)]} />
+          <div>
+            ${parts.map(p => html`
+              <div class="lg" key=${p.id} style=${`--c:${p.color}`}>
+                <span>${p.a?.icon || '？'}</span>
+                <span class="nm">${p.a?.name || '（削除済み）'}</span>
+                <span class="v"><b>${hm(p.ms)}</b>　${Math.round(p.ms / 60000)}分・${Math.round((p.ms / tracked) * 100)}%</span>
+                <span class="bar"><i style=${`width:${(p.ms / parts[0].ms) * 100}%`}></i></span>
+              </div>`)}
+            ${untracked > 60000 && html`<div class="lg" style=${`--c:${UNTRACKED}`}><span>·</span><span class="nm muted">未記録</span><span class="v">${hm(untracked)}</span></div>`}
+          </div>
+        </div>`}
+    </div>
+    <div class="rep-acts">
+      <button class="btn sub" onClick=${newLog}>＋ あとから記録</button>
+      <button class="btn sub" disabled=${!logs?.length} onClick=${exportCsv}>⇩ CSV</button>
+    </div>
+    ${mode === 'day' && logs?.length > 0 && html`
+      <div class="ghead"><span>行動履歴</span><span>${logs.length}件</span></div>
+      <div class="list">${logs.map(l => html`<${LogRow} key=${l.id} l=${l} a=${byId[l.action_id]} now=${now} onClick=${() => openLog(l)} />`)}</div>`}`
+}
+
+function ActionsView({ L, openAction }) {
+  const { actions, counts, act } = L
+  const [showArch, setShowArch] = useState(false)
+  const vis = actions.filter(a => !a.archived), arch = actions.filter(a => a.archived)
+  const row = (a, i, list) => html`
+    <li class="row" key=${a.id}>
+      <span class="lic" style=${`--c:${a.color}`}>${a.icon}</span>
+      <button class="lmain" style="text-align:left" onClick=${() => openAction(a)}><b>${a.name}</b><small>${(counts[a.id] || 0).toLocaleString()} 回</small></button>
+      <${DotMenu} render=${close => html`
+        <${MI} icon="✎" label="編集" onClick=${() => { close(); openAction(a) }} />
+        ${!a.archived && i > 0 && html`<${MI} icon="↑" label="上へ" onClick=${() => { close(); act.moveAction(a.id, -1) }} />`}
+        ${!a.archived && i < list.length - 1 && html`<${MI} icon="↓" label="下へ" onClick=${() => { close(); act.moveAction(a.id, 1) }} />`}
+        <${MI} icon=${a.archived ? '👁' : '🙈'} label=${a.archived ? '再表示する' : '非表示にする（記録は残す）'} onClick=${() => { close(); act.updateAction(a.id, { archived: !a.archived }) }} />
+        <div class="msep"></div>
+        <${MI} icon="🗑" label="削除" danger onClick=${() => {
+          close()
+          const n = counts[a.id] || 0
+          if (confirm(n ? `「${a.name}」を削除しますか？\nこのアクションの記録 ${n} 件もすべて消えます（元に戻せません）。\n記録を残したい場合は「非表示にする」を使ってください。` : `「${a.name}」を削除しますか？`)) act.deleteAction(a)
+        }} />`} />
+    </li>`
+  return html`
+    <div class="ghead" style="margin-top:0"><span>表示中（${vis.length}）</span><button class="chip" onClick=${() => openAction({})}>＋ 追加</button></div>
+    <ul class="list">${vis.map((a, i) => row(a, i, vis))}</ul>
+    ${arch.length > 0 && html`
+      <div class="ghead"><button class="chip" onClick=${() => setShowArch(!showArch)}>${showArch ? '▾' : '▸'} 非表示のアクション（${arch.length}）</button></div>
+      ${showArch && html`<ul class="list">${arch.map((a, i) => row(a, i, arch))}</ul>`}`}`
+}
+
+function ActionModal({ L, action, onClose }) {
+  const [name, setName] = useState(action?.name || '')
+  const [icon, setIcon] = useState(action?.icon || ICONS[0])
+  const [color, setColor] = useState(action?.color || PALETTE[L.actions.length % PALETTE.length])
+  const save = () => {
+    const n = name.trim(); if (!n) return
+    const v = { name: n, icon: icon.trim() || '⏱️', color }
+    action ? L.act.updateAction(action.id, v) : L.act.addAction(v)
+    onClose()
+  }
+  return html`<${Modal} title=${action ? 'アクションを編集' : 'アクションを追加'} onClose=${onClose}>
+    <div class="field"><label>名前</label><input value=${name} placeholder="例: 仕事、勉強、睡眠" onInput=${e => setName(e.target.value)} onKeyDown=${e => isEnter(e) && save()} /></div>
+    <div class="field"><label>アイコン</label><${IconPicker} value=${icon} onChange=${setIcon} /></div>
+    <div class="field"><label>色</label><div class="swatches">${PALETTE.map(c => html`<button type="button" aria-label=${c} class=${c === color ? 'on' : ''} style=${`--c:${c}`} onClick=${() => setColor(c)}></button>`)}</div></div>
+    <div class="acts"><span class="grow"></span><button class="btn ghost" onClick=${onClose}>キャンセル</button><button class="btn" disabled=${!name.trim()} onClick=${save}>保存</button></div>
+  <//>`
+}
+
+function LogModal({ L, entry, onClose }) {
+  const isNew = !entry.id, live = !isNew && !entry.ended_at
+  const choices = L.actions.filter(a => !a.archived || a.id === entry.action_id)
+  const [actionId, setActionId] = useState(entry.action_id || choices[0]?.id || '')
+  const [start, setStart] = useState(toLocalInput(entry.started_at))
+  const [end, setEnd] = useState(entry.ended_at ? toLocalInput(entry.ended_at) : '')
+  const [err, setErr] = useState('')
+  const save = async () => {
+    if (!actionId || !start) return setErr('アクションと開始時刻を入れてください')
+    if (!live && !end) return setErr('終了時刻を入れてください')
+    // 分単位の入力欄なので、変更していない時刻は元の値（秒まで）をそのまま使う
+    const s = start === toLocalInput(entry.started_at) ? entry.started_at : new Date(start).toISOString()
+    const e = !end ? null : entry.ended_at && end === toLocalInput(entry.ended_at) ? entry.ended_at : new Date(end).toISOString()
+    if (e && Date.parse(e) < Date.parse(s)) return setErr('終了は開始より後にしてください')
+    if (!e && Date.parse(s) > Date.now()) return setErr('開始時刻が未来になっています')
+    isNew ? await L.act.addLog({ action_id: actionId, started_at: s, ended_at: e }) : await L.act.updateLog(entry.id, { action_id: actionId, started_at: s, ended_at: e })
+    onClose()
+  }
+  return html`<${Modal} title=${isNew ? 'あとから記録' : live ? '記録中の行動を修正' : '記録を修正'} onClose=${onClose}>
+    <div class="field"><label>アクション</label>
+      <select value=${actionId} onChange=${e => setActionId(e.target.value)}>${choices.map(a => html`<option value=${a.id}>${a.icon} ${a.name}</option>`)}</select></div>
+    <div class="field"><label>開始</label><input type="datetime-local" value=${start} onInput=${e => setStart(e.target.value)} /></div>
+    <div class="field"><label>終了</label><input type="datetime-local" value=${end} onInput=${e => setEnd(e.target.value)} />
+      ${live && html`<div class="hint">空欄のままなら記録中のまま。時刻を入れるとそこで終了します。</div>`}</div>
+    ${err && html`<div class="msg err">${err}</div>`}
+    <div class="acts">
+      ${!isNew && html`<button class="btn danger" onClick=${() => { L.act.deleteLog(entry); onClose() }}>削除</button>`}
+      <span class="grow"></span>
+      <button class="btn ghost" onClick=${onClose}>キャンセル</button>
+      <button class="btn" onClick=${save}>保存</button>
+    </div>
+  <//>`
+}
+
+/* ---- daily (ピンポイントの時刻・値) ---- */
+function DailyRow({ it, value, isToday, onSave, onHist }) {
+  const [draft, setDraft] = useState(value)
+  const focused = useRef(false)
+  useEffect(() => { if (!focused.current) setDraft(value) }, [value])
+  const commit = v => { focused.current = false; const t = String(v).trim(); if (t !== value) onSave(t) }
+  const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+  const suffix = it.kind === 'time' ? '（h:m）' : it.unit ? `（${it.unit}）` : ''
+  const field = it.kind === 'check'
+    ? html`<div><${Check} done=${value === '1'} onToggle=${() => onSave(value === '1' ? '' : '1')} /></div>`
+    : html`<input class=${'dval k-' + it.kind} type=${it.kind === 'time' ? 'time' : it.kind === 'number' ? 'number' : 'text'}
+        inputmode=${it.kind === 'number' ? 'decimal' : undefined} step=${it.kind === 'number' ? 'any' : undefined}
+        value=${draft} placeholder=${it.kind === 'time' ? '--:--' : it.kind === 'number' ? '–' : 'タップして入力'} aria-label=${it.name}
+        onFocus=${() => { focused.current = true }} onInput=${e => setDraft(e.target.value)} onBlur=${e => commit(e.target.value)}
+        onKeyDown=${e => { if (isEnter(e)) e.target.blur() }} />`
+  return html`
+    <li class=${'row drow' + (value ? ' has' : '')}>
+      <span class="dic">${it.icon}</span>
+      <div class="dmain"><small>${it.name}${suffix}</small>${field}</div>
+      ${it.kind === 'time' && isToday && !value && html`<button class="chip nowbtn" title="今の時刻を記録" onClick=${() => onSave(nowHM())}>今</button>`}
+      ${(it.kind === 'time' || it.kind === 'number') && html`<button class="ricon" title="グラフで推移を見る" aria-label=${it.name + 'のグラフ'} onClick=${() => onHist('chart')}>📈</button>`}
+      <button class="ricon" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
+    </li>`
+}
+
+function DailyView({ L }) {
+  const { items, act, version } = L
+  const [day, setDay] = useState(todayKey)
+  const [vals, setVals] = useState({})
+  const [hist, setHist] = useState(null)
+  const [settings, setSettings] = useState(false)
+  useEffect(() => {
+    let alive = true
+    sb.from('tb_daily_values').select('item_id,value').eq('day', day).then(({ data }) => { if (alive && data) setVals(Object.fromEntries(data.map(r => [r.item_id, r.value]))) })
+    return () => { alive = false }
+  }, [day, version])
+  const d = keyToDate(day), tk = todayKey()
+  const save = (it, v) => {
+    setVals(p => { const q = { ...p }; if (v === '') delete q[it.id]; else q[it.id] = v; return q })
+    act.setValue(it.id, day, v)
+  }
+  const vis = items.filter(i => !i.hidden && i.kind !== 'habit')
+  return html`
+    <div class="dhead">
+      <button class="icon" aria-label="前の日" onClick=${() => setDay(dayKey(addDays(d, -1)))}>‹</button>
+      <div class="ddate"><span class="dnum">${d.getDate()}</span><span class="dsub">${d.getFullYear()}年${d.getMonth() + 1}月<br />${WD[d.getDay()]}曜日</span></div>
+      <button class="icon" aria-label="次の日" onClick=${() => setDay(dayKey(addDays(d, 1)))}>›</button>
+      ${day !== tk && html`<button class="chip" onClick=${() => setDay(tk)}>今日</button>`}
+      <span style="flex:1"></span>
+      <button class="chip" onClick=${() => setSettings(true)}>⚙ 項目</button>
+    </div>
+    ${vis.length ? html`<ul class="list">${vis.map(it => html`<${DailyRow} key=${it.id + day} it=${it} value=${vals[it.id] ?? ''} isToday=${day === tk} onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} />`)}</ul>`
+      : html`<div class="empty list">表示する項目がありません。「⚙ 項目」から追加・表示できます。</div>`}
+    ${hist && html`<${HistoryModal} L=${L} item=${hist.item} mode=${hist.mode} onClose=${() => setHist(null)} />`}
+    ${settings && html`<${DailySettings} L=${L} onClose=${() => setSettings(false)} />`}`
+}
+
+function LineChart({ rows, kind, span }) {
+  const end = startOfDay(new Date()), start = addDays(end, -(span - 1))
+  const pts = rows.map(r => ({ day: r.day, y: kind === 'time' ? hmToMin(r.value) : parseFloat(r.value) }))
+    .filter(p => p.y != null && !isNaN(p.y) && keyToDate(p.day) >= start && keyToDate(p.day) <= end)
+    .sort((a, b) => (a.day < b.day ? -1 : 1))
+  if (!pts.length) return html`<div class="empty">この期間の記録はありません</div>`
+  const W = 340, H = 190, P = { l: 42, r: 10, t: 12, b: 24 }
+  let lo = Math.min(...pts.map(p => p.y)), hi = Math.max(...pts.map(p => p.y))
+  if (lo === hi) { const d = kind === 'time' ? 30 : 1; lo -= d; hi += d }
+  const m = (hi - lo) * 0.12; lo -= m; hi += m
+  const x = day => P.l + ((keyToDate(day) - start) / 86400000 / Math.max(1, span - 1)) * (W - P.l - P.r)
+  const y = v => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b)
+  const fmt = v => (kind === 'time' ? minToHm(v) : String(Math.round(v * 10) / 10))
+  const avg = pts.reduce((s, p) => s + p.y, 0) / pts.length
+  const ticks = [0, 1, 2, 3].map(i => lo + ((hi - lo) * i) / 3)
+  return html`
+    <svg class="lchart" viewBox=${`0 0 ${W} ${H}`} role="img" aria-label="推移グラフ">
+      ${ticks.map(t => html`<line x1=${P.l} x2=${W - P.r} y1=${y(t)} y2=${y(t)} class="grid" /><text x=${P.l - 6} y=${y(t) + 4} text-anchor="end" class="ax">${fmt(t)}</text>`)}
+      <line x1=${P.l} x2=${W - P.r} y1=${y(avg)} y2=${y(avg)} class="avg" />
+      <polyline points=${pts.map(p => `${x(p.day)},${y(p.y)}`).join(' ')} class="ln" />
+      ${pts.map(p => html`<circle cx=${x(p.day)} cy=${y(p.y)} r=${span > 120 ? 2 : 3.5} class="dot"><title>${dayLabel(p.day)} ${fmt(p.y)}</title></circle>`)}
+      <text x=${P.l} y=${H - 6} class="ax">${start.getMonth() + 1}/${start.getDate()}</text>
+      <text x=${W - P.r} y=${H - 6} text-anchor="end" class="ax">${end.getMonth() + 1}/${end.getDate()}</text>
+    </svg>
+    <div class="stats"><span>平均 <b>${fmt(avg)}</b></span><span>最早/最小 <b>${fmt(Math.min(...pts.map(p => p.y)))}</b></span><span>最遅/最大 <b>${fmt(Math.max(...pts.map(p => p.y)))}</b></span><span>${pts.length}日分</span></div>`
+}
+
+function HistoryModal({ L, item, mode: initMode, onClose }) {
+  const chartable = item.kind === 'time' || item.kind === 'number'
+  const [mode, setMode] = useState(chartable ? initMode : 'list')
+  const [span, setSpan] = useLS('tb_hist_span', '30')
+  const [rows, setRows] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetchAll(() => sb.from('tb_daily_values').select('day,value').eq('item_id', item.id).order('day', { ascending: false }))
+      .then(d => alive && setRows(d)).catch(() => alive && setRows([]))
+    return () => { alive = false }
+  }, [item.id, L.version])
+  const show = v => (item.kind === 'check' || item.kind === 'habit' ? '✓' : item.kind === 'number' && item.unit ? `${v} ${item.unit}` : v)
+  return html`<${Modal} title=${`${item.icon} ${item.name}`} onClose=${onClose}>
+    ${chartable && html`<div class="toolbar" style="margin-top:0">
+      <div class="seg"><button class=${mode === 'chart' ? 'on' : ''} onClick=${() => setMode('chart')}>📈 グラフ</button><button class=${mode === 'list' ? 'on' : ''} onClick=${() => setMode('list')}>☰ 一覧</button></div>
+      ${mode === 'chart' && html`<div class="chips">${[['30', '30日'], ['90', '90日'], ['365', '1年']].map(([k, l]) => html`<button class=${'chip' + (span === k ? ' on' : '')} onClick=${() => setSpan(k)}>${l}</button>`)}</div>`}
+    </div>`}
+    ${rows === null ? html`<div class="empty">読み込み中…</div>`
+      : mode === 'chart' ? html`<${LineChart} rows=${rows} kind=${item.kind} span=${+span} />`
+      : rows.length ? html`<div class="list hist">${rows.map(r => html`<div class="lrow" key=${r.day}><span class="lmain"><b>${dayLabel(r.day)}</b></span><span class="ldur">${show(r.value)}</span></div>`)}</div>`
+      : html`<div class="empty">まだ記録がありません</div>`}
+  <//>`
+}
+
+function DailyItemModal({ L, item, habit, onClose }) {
+  const [name, setName] = useState(item?.name || '')
+  const [icon, setIcon] = useState(item?.icon || (habit ? '✅' : '⏰'))
+  const [kind, setKind] = useState(habit ? 'habit' : item?.kind || 'time')
+  const [unit, setUnit] = useState(item?.unit || '')
+  const [target, setTarget] = useState(String(item?.target ?? 3))
+  const save = () => {
+    const n = name.trim(); if (!n) return
+    const v = { name: n, icon: icon.trim() || '✳️', kind, unit: kind === 'number' ? unit.trim() : '' }
+    if (habit) v.target = Math.min(7, Math.max(0, parseInt(target) || 0))
+    item ? L.act.updateDaily(item.id, v) : L.act.addDaily(v)
+    onClose()
+  }
+  const word = habit ? '習慣' : '項目'
+  return html`<${Modal} title=${item ? `${word}を編集` : `${word}を追加`} onClose=${onClose}>
+    <div class="field"><label>名前</label><input value=${name} placeholder=${habit ? '例: 筋トレ、ストレッチ、読書' : '例: 起床、電車（帰り）、体重'} onInput=${e => setName(e.target.value)} /></div>
+    ${habit ? html`
+      <div class="field"><label>1週間の目標</label>
+        <select value=${target} onChange=${e => setTarget(e.target.value)}>${[0, 1, 2, 3, 4, 5, 6, 7].map(n => html`<option value=${n}>${n ? `週 ${n} 回` : '目標なし'}</option>`)}</select></div>`
+    : html`
+      <div class="field"><label>種類</label>
+        <select value=${kind} onChange=${e => setKind(e.target.value)}>${Object.entries(DAILY_KINDS).map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select>
+        ${item && kind !== item.kind && html`<div class="hint">種類を変えると、過去の値がグラフに出なくなる場合があります。</div>`}</div>
+      ${kind === 'number' && html`<div class="field"><label>単位（任意）</label><input value=${unit} placeholder="例: 時間、kg、℃、歩" onInput=${e => setUnit(e.target.value)} /></div>`}`}
+    <div class="field"><label>アイコン</label><${IconPicker} value=${icon} onChange=${setIcon} /></div>
+    <div class="acts"><span class="grow"></span><button class="btn ghost" onClick=${onClose}>キャンセル</button><button class="btn" disabled=${!name.trim()} onClick=${save}>保存</button></div>
+  <//>`
+}
+
+function DailySettings({ L, habit, onClose }) {
+  const { act } = L
+  const items = L.items.filter(x => (x.kind === 'habit') === !!habit)
+  const [edit, setEdit] = useState(null)
+  const word = habit ? '習慣' : '項目'
+  if (edit) return html`<${DailyItemModal} L=${L} habit=${habit} item=${edit.id ? edit : null} onClose=${() => setEdit(null)} />`
+  return html`<${Modal} title=${habit ? '習慣の設定' : 'デイリーの項目'} onClose=${onClose}>
+    <p class="muted" style="font-size:13px;margin-bottom:10px">目のボタンで表示・非表示を切り替えます。非表示にしても過去の記録は残ります。</p>
+    <ul class="list">${items.map((it, i) => html`
+      <li class=${'row' + (it.hidden ? ' done' : '')} key=${it.id}>
+        <button class="ricon" title=${it.hidden ? '表示する' : '非表示にする'} aria-label=${it.hidden ? '表示する' : '非表示にする'} onClick=${() => act.updateDaily(it.id, { hidden: !it.hidden })}>${it.hidden ? '🙈' : '👁'}</button>
+        <span class="dic">${it.icon}</span>
+        <span class="text" onClick=${() => setEdit(it)}>${it.name}<small class="muted" style="margin-left:6px;font-size:11px">${habit ? (it.target ? `週${it.target}回` : '目標なし') : DAILY_KINDS[it.kind] + (it.unit ? '・' + it.unit : '')}</small></span>
+        <${DotMenu} render=${close => html`
+          <${MI} icon="✎" label="編集" onClick=${() => { close(); setEdit(it) }} />
+          ${i > 0 && html`<${MI} icon="↑" label="上へ" onClick=${() => { close(); act.moveDaily(it.id, -1, habit) }} />`}
+          ${i < items.length - 1 && html`<${MI} icon="↓" label="下へ" onClick=${() => { close(); act.moveDaily(it.id, 1, habit) }} />`}
+          <div class="msep"></div>
+          <${MI} icon="🗑" label="削除" danger onClick=${() => { close(); if (confirm(`「${it.name}」を削除しますか？\nこの${word}の過去の記録もすべて消えます（元に戻せません）。\n残したい場合は非表示にしてください。`)) act.deleteDaily(it) }} />`} />
+      </li>`)}</ul>
+    <div class="acts"><button class="btn sub" onClick=${() => setEdit({})}>＋ ${word}を追加</button><span class="grow"></span><button class="btn" onClick=${onClose}>完了</button></div>
+  <//>`
+}
+
+/* ---- 習慣（週ごとのチェック） ---- */
+function HabitView({ L }) {
+  const { items, act, version } = L
+  const habits = items.filter(i => i.kind === 'habit' && !i.hidden)
+  const thisWeek = () => { const t = startOfDay(new Date()); return addDays(t, -((t.getDay() + 6) % 7)) }
+  const [weekStart, setWeekStart] = useState(thisWeek)
+  const [done, setDone] = useState({})
+  const [settings, setSettings] = useState(false)
+  const [hist, setHist] = useState(null)
+  const days = [...Array(7)].map((_, i) => dayKey(addDays(weekStart, i)))
+  const tk = todayKey()
+  useEffect(() => {
+    let alive = true
+    sb.from('tb_daily_values').select('item_id,day').gte('day', days[0]).lte('day', days[6])
+      .then(({ data }) => { if (alive && data) setDone(Object.fromEntries(data.map(r => [r.item_id + '|' + r.day, true]))) })
+    return () => { alive = false }
+  }, [days[0], version])
+  const toggle = (it, d) => {
+    const k = it.id + '|' + d, was = !!done[k]
+    setDone(p => { const q = { ...p }; if (was) delete q[k]; else q[k] = true; return q })
+    act.setValue(it.id, d, was ? '' : '1')
+  }
+  const s = keyToDate(days[0]), e = keyToDate(days[6])
+  return html`
+    <div class="rep-nav">
+      <button class="icon" aria-label="前の週" onClick=${() => setWeekStart(addDays(weekStart, -7))}>‹</button>
+      <strong>${s.getMonth() + 1}/${s.getDate()} 〜 ${e.getMonth() + 1}/${e.getDate()}</strong>
+      <button class="icon" aria-label="次の週" onClick=${() => setWeekStart(addDays(weekStart, 7))}>›</button>
+      ${days[0] !== dayKey(thisWeek()) && html`<button class="chip" onClick=${() => setWeekStart(thisWeek())}>今週</button>`}
+      <button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button>
+    </div>
+    ${habits.length ? html`
+      <div class="hgrid">
+        <div class="hrow hhead"><span></span>${days.map(d => { const dt = keyToDate(d); return html`<span class=${'hd' + (d === tk ? ' today' : '') + (dt.getDay() === 0 ? ' sun' : dt.getDay() === 6 ? ' sat' : '')}>${WD[dt.getDay()]}<b>${dt.getDate()}</b></span>` })}</div>
+        ${habits.map(it => {
+          const n = days.filter(d => done[it.id + '|' + d]).length, ok = it.target > 0 && n >= it.target
+          return html`
+            <div class="hrow" key=${it.id}>
+              <button class="hname" title="これまでの記録" onClick=${() => setHist(it)}>
+                <span class="hic">${it.icon}</span>
+                <span class="hn"><b>${it.name}</b><small class=${ok ? 'ok' : ''}>${n}${it.target ? ` / ${it.target}` : ''} 回${ok ? ' 達成 🎉' : ''}</small></span>
+              </button>
+              ${days.map(d => {
+                const on = !!done[it.id + '|' + d]
+                return html`<button class=${'hcell' + (on ? ' on' : '') + (d === tk ? ' today' : '')} disabled=${d > tk}
+                  aria-pressed=${on ? 'true' : 'false'} aria-label=${`${it.name} ${dayLabel(d)}`} onClick=${() => toggle(it, d)}>${on ? '✓' : ''}</button>`
+              })}
+            </div>`
+        })}
+      </div>
+      <p class="muted" style="font-size:12px;text-align:center;margin-top:10px">やった日のマスをタップ。もう一度タップで取り消し。</p>`
+    : html`<div class="empty list">習慣がありません。「⚙ 習慣」から追加できます。</div>`}
+    ${settings && html`<${DailySettings} L=${L} habit onClose=${() => setSettings(false)} />`}
+    ${hist && html`<${HistoryModal} L=${L} item=${hist} mode="list" onClose=${() => setHist(null)} />`}`
+}
+
+function ActionsModal({ L, onClose }) {
+  const [edit, setEdit] = useState(null)
+  if (edit) return html`<${ActionModal} L=${L} action=${edit.id ? edit : null} onClose=${() => setEdit(null)} />`
+  return html`<${Modal} title="アクションの設定" onClose=${onClose}>
+    <${ActionsView} L=${L} openAction=${setEdit} />
+    <div class="acts"><span class="grow"></span><button class="btn" onClick=${onClose}>完了</button></div>
+  <//>`
+}
+
+function LogView({ L }) {
+  const [sub, setSub] = useLS('tb_log_sub', 'record')
+  const [editLog, setEditLog] = useState(null)
+  const [actionsOpen, setActionsOpen] = useState(false)
+  return html`
+    <main class="logv">
+      <div class="seg logtabs">
+        ${[['record', '⏱ 時間'], ['daily', '📅 デイリー'], ['habit', '✅ 習慣'], ['report', '📊 レポート']].map(([k, l]) => html`<button class=${sub === k ? 'on' : ''} onClick=${() => setSub(k)}>${l}</button>`)}
+      </div>
+      ${!L.ready ? html`<div class="empty">読み込み中…</div>`
+        : sub === 'record' ? html`<${RecordView} L=${L} openLog=${setEditLog} openActions=${() => setActionsOpen(true)} />`
+        : sub === 'daily' ? html`<${DailyView} L=${L} />`
+        : sub === 'habit' ? html`<${HabitView} L=${L} />`
+        : html`<${ReportView} L=${L} openLog=${setEditLog} />`}
+      ${editLog && html`<${LogModal} L=${L} entry=${editLog} onClose=${() => setEditLog(null)} />`}
+      ${actionsOpen && html`<${ActionsModal} L=${L} onClose=${() => setActionsOpen(false)} />`}
+    </main>`
+}
+
 /* ================= shell ================= */
 function Main({ session }) {
   const [toast, setToast] = useState(null)
@@ -641,6 +1455,8 @@ function Main({ session }) {
     timer.current = setTimeout(() => setToast(null), undo ? 6000 : 4000)
   }, [])
   const { items, columns, loading, online, act } = useBoard(session.user.id, notify)
+  const log = useLog(session.user.id, notify)
+  const runAct = log.running && log.actions.find(a => a.id === log.running.action_id)
   const [tab, setTab] = useLS('tb_tab', 'inbox')
   const [drag, setDrag] = useState(null)
   const [tabDrop, setTabDrop] = useState(false)
@@ -659,6 +1475,9 @@ function Main({ session }) {
           Inbox ${openInbox > 0 && html`<span class="badge">${openInbox}</span>`}
         </button>
         <button class=${tab === 'board' ? 'on' : ''} onClick=${() => setTab('board')}>ボード</button>
+        <button class=${tab === 'log' ? 'on' : ''} onClick=${() => setTab('log')} title=${runAct ? runAct.name + ' を記録中' : ''}>
+          ログ ${runAct && html`<span class="runic">${runAct.icon}</span>`}
+        </button>
       </nav>
       <span class=${'sync' + (online ? '' : ' off')} title=${online ? '同期中' : '同期できていません'}></span>
       <${DotMenu} label="アカウント" render=${close => html`
@@ -667,7 +1486,8 @@ function Main({ session }) {
         <div class="msep"></div>
         <${MI} icon="⎋" label="ログアウト" onClick=${() => { close(); sb.auth.signOut() }} />`} />
     </header>
-    ${loading ? html`<div class="empty">読み込み中…</div>`
+    ${tab === 'log' ? html`<${LogView} L=${log} />`
+      : loading ? html`<div class="empty">読み込み中…</div>`
       : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} act=${act} />`
       : html`<${Board} items=${items} columns=${columns} act=${act} drag=${drag} setDrag=${setDrag} />`}
     ${toast && html`<div class="toast" key=${toast.k} role="status">

@@ -1,6 +1,6 @@
 # TaskBoard 用の小さな静的ファイルサーバー（Node/Python 不要）
 # 使い方: powershell -ExecutionPolicy Bypass -File server.ps1 [-Port 5176]
-param([int]$Port = 5176)
+param([int]$Port = $(if ($env:PORT) { [int]$env:PORT } else { 5176 }))
 
 $root = [IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Path))
 $types = @{
