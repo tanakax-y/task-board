@@ -184,8 +184,6 @@ input { font: inherit; color: inherit; font-size: 16px; } /* 16px未満だとiPh
 
 /* ---- action log ---- */
 .logv { max-width: 760px; margin: 0 auto; padding: 12px max(12px, env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
-.logtabs { display: flex; width: 100%; margin-bottom: 12px; }
-.logtabs button { flex: 1; padding: 6px 0; font-size: 14px; }
 .runic { font-size: 14px; line-height: 1; animation: blink 2s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: .35; } }
 .now {
@@ -317,6 +315,59 @@ button.lrow:hover { background: var(--hover); }
 .swatches button.on { outline: 3px solid var(--text); outline-offset: 2px; }
 .sheet .acts { display: flex; gap: 8px; margin-top: 16px; }
 .sheet .acts .grow { flex: 1; }
+
+/* ---- bottom navigation & docks (スマホでは操作を画面下に集める) ---- */
+:root { --nav-h: 0px; --dock-h: 0px; }
+.ptitle { display: none; }
+.bnav { display: none; }
+.dock .toolbar, .dock .rep-nav, .dock .dhead { margin: 0; }
+.dock { margin-bottom: 12px; }
+.inbox-dock { display: flex; flex-direction: column-reverse; gap: 12px; }
+.inbox .search { margin-bottom: 4px; }
+.rep-nav .seg { flex: none; }
+.chip:disabled { opacity: .4; cursor: default; }
+@media (max-width: 640px) {
+  :root { --nav-h: 56px; }
+  .top .tabs { display: none; }
+  .ptitle { display: block; flex: 1; font-size: 16px; }
+  .bnav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: var(--panel); border-top: 1px solid var(--border);
+  }
+  .bnav button { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10.5px; font-weight: 600; color: var(--muted); }
+  .bnav .bi { font-size: 21px; line-height: 1; filter: grayscale(1); opacity: .65; }
+  .bnav button.on { color: var(--accent); }
+  .bnav button.on .bi, .bnav .bi.runic { filter: none; opacity: 1; }
+  .bnav .badge { position: absolute; top: 4px; left: calc(50% + 6px); }
+  .dock {
+    position: fixed; left: 0; right: 0; z-index: 35; margin: 0;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding: 8px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left));
+    background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+  }
+  .inbox-dock { flex-direction: column; gap: 8px; }
+  .inbox-dock .toolbar { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+  .inbox-dock .chip { padding: 4px 9px; }
+  .inbox, .logv { padding-top: 10px; padding-bottom: calc(var(--dock-h) + var(--nav-h) + env(safe-area-inset-bottom) + 20px); }
+  .board { height: calc(100dvh - var(--top-h) - env(safe-area-inset-top) - var(--nav-h) - env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(var(--dock-h) + var(--nav-h) + env(safe-area-inset-bottom) + 10px); }
+  .rep-nav strong { font-size: 15px; }
+  /* 時間：今の記録＋アクションボタンを親指の届く範囲にコンパクトに */
+  .rec-dock .now { min-height: 0; padding: 9px 12px; gap: 10px; border-radius: 12px; }
+  .rec-dock .now-ic { font-size: 28px; }
+  .rec-dock .now-time { font-size: 26px; }
+  .rec-dock .now-name { font-size: 13px; }
+  .rec-dock .stop { width: 44px; height: 44px; }
+  .rec-dock .now-idle { font-size: 13px; padding: 6px 0; }
+  .rec-dock .now-idle small { display: none; }
+  .rec-dock .agrid { grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; max-height: 148px; overflow-y: auto; }
+  .rec-dock .abtn { padding: 8px 2px 6px; gap: 3px; }
+  .rec-dock .abtn .aic { font-size: 22px; }
+  .rec-dock .abtn .an { font-size: 11.5px; }
+  .dhead .dnum { font-size: 28px; }
+}
 
 /* ---- toast ---- */
 .toast {
@@ -636,25 +687,26 @@ function Inbox({ items, columns, act }) {
 
   return html`
     <main class=${'inbox' + (view === 'calendar' ? ' calmode' : '')}>
-      <div class="composer">
-        <input ref=${inputRef} value=${text} placeholder="思いついたことを入力して Enter…" enterkeyhint="done" aria-label="新しいメモ・タスク"
-          onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); add() } }} />
-        <button class="btn" disabled=${!text.trim()} onClick=${add}>追加</button>
-      </div>
-
-      <div class="toolbar">
-        <div class="seg" role="tablist">
-          <button class=${view === 'list' ? 'on' : ''} onClick=${() => setView('list')}>☰ 一覧</button>
-          <button class=${view === 'calendar' ? 'on' : ''} onClick=${() => setView('calendar')}>▦ カレンダー</button>
+      <${Dock} cls="inbox-dock">
+        <div class="toolbar">
+          <div class="seg" role="tablist">
+            <button class=${view === 'list' ? 'on' : ''} onClick=${() => setView('list')}>☰ 一覧</button>
+            <button class=${view === 'calendar' ? 'on' : ''} onClick=${() => setView('calendar')}>▦ カレンダー</button>
+          </div>
+          <div class="chips">
+            ${[['all', 'すべて'], ['open', '未済'], ['done', '処理済']].map(([k, l]) => html`<button class=${'chip' + (status === k ? ' on' : '')} onClick=${() => setStatus(k)}>${l}</button>`)}
+          </div>
         </div>
-        <div class="chips">
-          ${[['all', 'すべて'], ['open', '未済'], ['done', '処理済']].map(([k, l]) => html`<button class=${'chip' + (status === k ? ' on' : '')} onClick=${() => setStatus(k)}>${l}</button>`)}
+        <div class="composer">
+          <input ref=${inputRef} value=${text} placeholder="思いついたことを入力…" enterkeyhint="done" aria-label="新しいメモ・タスク"
+            onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); add() } }} />
+          <button class="btn" disabled=${!text.trim()} onClick=${add}>追加</button>
         </div>
-        <label class="search"><span class="muted">⌕</span><input type="search" placeholder="検索" value=${q} onInput=${e => setQ(e.target.value)} /></label>
-      </div>
+      <//>
+      <label class="search"><span class="muted">⌕</span><input type="search" placeholder="検索" value=${q} onInput=${e => setQ(e.target.value)} /></label>
 
       ${view === 'list' ? html`
-        ${groups.length === 0 && html`<div class="empty">${items.length ? '条件に合うものはありません' : 'まだ何もありません。上の欄に思いついたことを書いてみましょう。'}</div>`}
+        ${groups.length === 0 && html`<div class="empty">${items.length ? '条件に合うものはありません' : 'まだ何もありません。入力欄に思いついたことを書いてみましょう。'}</div>`}
         ${groups.map(g => html`<section key=${g.k}><div class="ghead"><span>${dayLabel(g.k)}</span><span>${g.list.length}件</span></div>${rows(g.list)}</section>`)}
         ${items.length > 0 && html`<div class="ghead" style="justify-content:center;margin-top:20px"><span>Inbox 未済 ${openCount} 件</span></div>`}
       ` : html`
@@ -1003,6 +1055,7 @@ function RecordView({ L, openLog, openActions }) {
   const byId = Object.fromEntries(actions.map(a => [a.id, a]))
   const newLog = () => { const e = new Date(), s = new Date(e - 60 * 60000); openLog({ started_at: s.toISOString(), ended_at: e.toISOString() }) }
   return html`
+    <${Dock} cls="rec-dock">
     <section class=${'now' + (ra ? ' on' : '')} style=${ra ? `--c:${ra.color}` : ''}>
       ${running ? html`
         <div class="now-ic">${ra?.icon || '⏱️'}</div>
@@ -1012,16 +1065,16 @@ function RecordView({ L, openLog, openActions }) {
           <div class="now-time">${hms(now - Date.parse(running.started_at))}</div>
         </div>
         <button class="stop" aria-label="記録を止める" title="止める" onClick=${act.stop}><i></i></button>`
-      : html`<div class="now-idle">記録中の行動はありません<small>下のアクションをタップすると記録が始まります（別のアクションをタップすると自動で切り替わります）</small></div>`}
+      : html`<div class="now-idle">記録中の行動はありません<small>アクションをタップすると記録が始まります（別のアクションをタップすると自動で切り替わります）</small></div>`}
     </section>
-    <div class="ghead"><span>タップで開始・切り替え</span><button class="chip" onClick=${openActions}>⚙ 編集</button></div>
-    <div class="agrid" style="margin-top:0">
+    <div class="agrid">
       ${actions.filter(a => !a.archived).map(a => html`
         <button key=${a.id} class=${'abtn' + (running?.action_id === a.id ? ' on' : '')} style=${`--c:${a.color}`} onClick=${() => act.start(a)}>
           <span class="aic">${a.icon}</span><span class="an">${a.name}</span>
         </button>`)}
     </div>
-    <div class="ghead"><span>今日の記録</span><button class="chip" onClick=${newLog}>＋ あとから記録</button></div>
+    <//>
+    <div class="ghead"><span>今日の記録</span><span class="chips"><button class="chip" onClick=${newLog}>＋ あとから記録</button><button class="chip" onClick=${openActions}>⚙ 編集</button></span></div>
     ${today.length ? html`<div class="list">${today.map(l => html`<${LogRow} key=${l.id} l=${l} a=${byId[l.action_id]} now=${now} onClick=${() => openLog(l)} />`)}</div>`
       : html`<div class="empty list">今日の記録はまだありません。付け忘れたときは「＋ あとから記録」で追加できます。</div>`}`
 }
@@ -1054,7 +1107,7 @@ function ReportView({ L, openLog }) {
     const a = anchor
     if (mode === 'week') { const f = addDays(a, -((a.getDay() + 6) % 7)), t = addDays(f, 7), e = addDays(t, -1); return { from: f, to: t, label: `${f.getMonth() + 1}/${f.getDate()}(${WD[f.getDay()]}) 〜 ${e.getMonth() + 1}/${e.getDate()}(${WD[e.getDay()]})` } }
     if (mode === 'month') { const f = new Date(a.getFullYear(), a.getMonth(), 1); return { from: f, to: new Date(a.getFullYear(), a.getMonth() + 1, 1), label: `${f.getFullYear()}年${f.getMonth() + 1}月` } }
-    return { from: a, to: addDays(a, 1), label: `${a.getFullYear()}年${a.getMonth() + 1}月${a.getDate()}日(${WD[a.getDay()]})` }
+    return { from: a, to: addDays(a, 1), label: `${a.getFullYear() !== new Date().getFullYear() ? a.getFullYear() + '/' : ''}${a.getMonth() + 1}/${a.getDate()}(${WD[a.getDay()]})` }
   }, [mode, anchor])
   useEffect(() => {
     let alive = true
@@ -1086,15 +1139,15 @@ function ReportView({ L, openLog }) {
   const newLog = () => { const e = mode === 'day' && dayKey(anchor) !== todayKey() ? new Date(anchor.getTime() + 12 * 3600000) : new Date(); openLog({ started_at: new Date(e - 3600000).toISOString(), ended_at: e.toISOString() }) }
 
   return html`
-    <div class="toolbar" style="margin-top:0">
-      <div class="seg">${[['day', '日'], ['week', '週'], ['month', '月']].map(([k, l]) => html`<button class=${mode === k ? 'on' : ''} onClick=${() => setMode(k)}>${l}</button>`)}</div>
-    </div>
-    <div class="rep-nav">
-      <button class="icon" aria-label="前へ" onClick=${() => shift(-1)}>‹</button>
-      <strong>${label}</strong>
-      <button class="icon" aria-label="次へ" onClick=${() => shift(1)}>›</button>
-      <button class="chip" onClick=${() => setAnchor(startOfDay(new Date()))}>今日</button>
-    </div>
+    <${Dock}>
+      <div class="rep-nav">
+        <div class="seg">${[['day', '日'], ['week', '週'], ['month', '月']].map(([k, l]) => html`<button class=${mode === k ? 'on' : ''} onClick=${() => setMode(k)}>${l}</button>`)}</div>
+        <button class="icon" aria-label="前へ" onClick=${() => shift(-1)}>‹</button>
+        <strong>${label}</strong>
+        <button class="icon" aria-label="次へ" onClick=${() => shift(1)}>›</button>
+        <button class="chip" onClick=${() => setAnchor(startOfDay(new Date()))}>今日</button>
+      </div>
+    <//>
     <div class="rep-card">
       ${logs === null ? html`<div class="empty">読み込み中…</div>` : !parts.length ? html`<div class="empty">この期間の記録はありません</div>` : html`
         <div class="rep-top">
@@ -1243,14 +1296,16 @@ function DailyView({ L }) {
   }
   const vis = items.filter(i => !i.hidden && i.kind !== 'habit')
   return html`
-    <div class="dhead">
-      <button class="icon" aria-label="前の日" onClick=${() => setDay(dayKey(addDays(d, -1)))}>‹</button>
-      <div class="ddate"><span class="dnum">${d.getDate()}</span><span class="dsub">${d.getFullYear()}年${d.getMonth() + 1}月<br />${WD[d.getDay()]}曜日</span></div>
-      <button class="icon" aria-label="次の日" onClick=${() => setDay(dayKey(addDays(d, 1)))}>›</button>
-      ${day !== tk && html`<button class="chip" onClick=${() => setDay(tk)}>今日</button>`}
-      <span style="flex:1"></span>
-      <button class="chip" onClick=${() => setSettings(true)}>⚙ 項目</button>
-    </div>
+    <${Dock}>
+      <div class="dhead">
+        <button class="icon" aria-label="前の日" onClick=${() => setDay(dayKey(addDays(d, -1)))}>‹</button>
+        <div class="ddate"><span class="dnum">${d.getDate()}</span><span class="dsub">${d.getFullYear()}年${d.getMonth() + 1}月<br />${WD[d.getDay()]}曜日</span></div>
+        <button class="icon" aria-label="次の日" onClick=${() => setDay(dayKey(addDays(d, 1)))}>›</button>
+        <span style="flex:1"></span>
+        <button class="chip" disabled=${day === tk} onClick=${() => setDay(tk)}>今日</button>
+      </div>
+    <//>
+    <div class="ghead" style="margin-top:0"><span>${day === tk ? '今日の記録' : dayLabel(day)}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 項目</button></div>
     ${vis.length ? html`<ul class="list">${vis.map(it => html`<${DailyRow} key=${it.id + day} it=${it} value=${vals[it.id] ?? ''} isToday=${day === tk} onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} />`)}</ul>`
       : html`<div class="empty list">表示する項目がありません。「⚙ 項目」から追加・表示できます。</div>`}
     ${hist && html`<${HistoryModal} L=${L} item=${hist.item} mode=${hist.mode} onClose=${() => setHist(null)} />`}
@@ -1385,13 +1440,15 @@ function HabitView({ L }) {
   }
   const s = keyToDate(days[0]), e = keyToDate(days[6])
   return html`
-    <div class="rep-nav">
-      <button class="icon" aria-label="前の週" onClick=${() => setWeekStart(addDays(weekStart, -7))}>‹</button>
-      <strong>${s.getMonth() + 1}/${s.getDate()} 〜 ${e.getMonth() + 1}/${e.getDate()}</strong>
-      <button class="icon" aria-label="次の週" onClick=${() => setWeekStart(addDays(weekStart, 7))}>›</button>
-      ${days[0] !== dayKey(thisWeek()) && html`<button class="chip" onClick=${() => setWeekStart(thisWeek())}>今週</button>`}
-      <button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button>
-    </div>
+    <${Dock}>
+      <div class="rep-nav">
+        <button class="icon" aria-label="前の週" onClick=${() => setWeekStart(addDays(weekStart, -7))}>‹</button>
+        <strong>${s.getMonth() + 1}/${s.getDate()} 〜 ${e.getMonth() + 1}/${e.getDate()}</strong>
+        <button class="icon" aria-label="次の週" onClick=${() => setWeekStart(addDays(weekStart, 7))}>›</button>
+        <button class="chip" disabled=${days[0] === dayKey(thisWeek())} onClick=${() => setWeekStart(thisWeek())}>今週</button>
+      </div>
+    <//>
+    <div class="ghead" style="margin-top:0"><span>やった日をタップ</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button></div>
     ${habits.length ? html`
       <div class="hgrid">
         <div class="hrow hhead"><span></span>${days.map(d => { const dt = keyToDate(d); return html`<span class=${'hd' + (d === tk ? ' today' : '') + (dt.getDay() === 0 ? ' sun' : dt.getDay() === 6 ? ' sat' : '')}>${WD[dt.getDay()]}<b>${dt.getDate()}</b></span>` })}</div>
@@ -1411,7 +1468,7 @@ function HabitView({ L }) {
             </div>`
         })}
       </div>
-      <p class="muted" style="font-size:12px;text-align:center;margin-top:10px">やった日のマスをタップ。もう一度タップで取り消し。</p>`
+      <p class="muted" style="font-size:12px;text-align:center;margin-top:10px">もう一度タップで取り消し</p>`
     : html`<div class="empty list">習慣がありません。「⚙ 習慣」から追加できます。</div>`}
     ${settings && html`<${DailySettings} L=${L} habit onClose=${() => setSettings(false)} />`}
     ${hist && html`<${HistoryModal} L=${L} item=${hist} mode="list" onClose=${() => setHist(null)} />`}`
@@ -1426,15 +1483,26 @@ function ActionsModal({ L, onClose }) {
   <//>`
 }
 
-function LogView({ L }) {
-  const [sub, setSub] = useLS('tb_log_sub', 'record')
+// スマホでは画面下（ナビの上）に固定、PCではその場（上部）に出る操作エリア
+function Dock({ children, cls = '' }) {
+  const ref = useRef()
+  useEffect(() => {
+    const el = ref.current, root = document.documentElement
+    const set = () => root.style.setProperty('--dock-h', (getComputedStyle(el).position === 'fixed' ? el.offsetHeight : 0) + 'px')
+    const ro = new ResizeObserver(set)
+    ro.observe(el); window.addEventListener('resize', set); set()
+    return () => { ro.disconnect(); window.removeEventListener('resize', set); root.style.setProperty('--dock-h', '0px') }
+  }, [])
+  return html`<div ref=${ref} class=${'dock ' + cls}>${children}</div>`
+}
+
+const TABS = [['inbox', '📥', 'Inbox'], ['board', '🗂️', 'ボード'], ['record', '⏱️', '時間'], ['daily', '📅', 'デイリー'], ['habit', '✅', '習慣'], ['report', '📊', 'レポート']]
+
+function LogView({ L, sub }) {
   const [editLog, setEditLog] = useState(null)
   const [actionsOpen, setActionsOpen] = useState(false)
   return html`
     <main class="logv">
-      <div class="seg logtabs">
-        ${[['record', '⏱ 時間'], ['daily', '📅 デイリー'], ['habit', '✅ 習慣'], ['report', '📊 レポート']].map(([k, l]) => html`<button class=${sub === k ? 'on' : ''} onClick=${() => setSub(k)}>${l}</button>`)}
-      </div>
       ${!L.ready ? html`<div class="empty">読み込み中…</div>`
         : sub === 'record' ? html`<${RecordView} L=${L} openLog=${setEditLog} openActions=${() => setActionsOpen(true)} />`
         : sub === 'daily' ? html`<${DailyView} L=${L} />`
@@ -1457,28 +1525,32 @@ function Main({ session }) {
   const { items, columns, loading, online, act } = useBoard(session.user.id, notify)
   const log = useLog(session.user.id, notify)
   const runAct = log.running && log.actions.find(a => a.id === log.running.action_id)
-  const [tab, setTab] = useLS('tb_tab', 'inbox')
+  const [savedTab, setTab] = useLS('tb_tab', 'inbox')
+  // 旧バージョンの「ログ」タブを開いていた場合は、そのとき見ていた画面へ
+  const tab = savedTab === 'log' ? localStorage.getItem('tb_log_sub') || 'record' : TABS.some(t => t[0] === savedTab) ? savedTab : 'inbox'
   const [drag, setDrag] = useState(null)
   const [tabDrop, setTabDrop] = useState(false)
 
   const inboxItems = useMemo(() => items.filter(i => !i.column_id), [items])
   const openInbox = inboxItems.filter(i => !i.done).length
+  const tabBtn = ([k, icon, label], bottom) => {
+    const isRec = k === 'record' && runAct
+    const props = k !== 'inbox' ? {} : {
+      onDragOver: e => { if (drag) { e.preventDefault(); setTabDrop(true) } }, onDragLeave: () => setTabDrop(false),
+      onDrop: e => { e.preventDefault(); setTabDrop(false); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); id && act.move(id, null) },
+      title: 'ボードのカードをここへドラッグすると Inbox に戻せます',
+    }
+    return html`<button key=${k} class=${(tab === k ? 'on' : '') + (k === 'inbox' && tabDrop ? ' drop' : '')} onClick=${() => setTab(k)} aria-current=${tab === k ? 'page' : undefined} ...${props}>
+      ${bottom ? html`<span class=${'bi' + (isRec ? ' runic' : '')}>${isRec ? runAct.icon : icon}</span>${label}` : html`${k === 'inbox' ? '' : icon + ' '}${label}${isRec ? html` <span class="runic">${runAct.icon}</span>` : ''}`}
+      ${k === 'inbox' && openInbox > 0 && html`<span class="badge">${openInbox}</span>`}
+    </button>`
+  }
 
   return html`
     <header class="top">
       <div class="brand"><img src="icon.svg" alt="" /><span>TaskBoard</span></div>
-      <nav class="tabs">
-        <button class=${(tab === 'inbox' ? 'on' : '') + (tabDrop ? ' drop' : '')} onClick=${() => setTab('inbox')}
-          onDragOver=${e => { if (drag) { e.preventDefault(); setTabDrop(true) } }} onDragLeave=${() => setTabDrop(false)}
-          onDrop=${e => { e.preventDefault(); setTabDrop(false); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); id && act.move(id, null) }}
-          title="ボードのカードをここへドラッグすると Inbox に戻せます">
-          Inbox ${openInbox > 0 && html`<span class="badge">${openInbox}</span>`}
-        </button>
-        <button class=${tab === 'board' ? 'on' : ''} onClick=${() => setTab('board')}>ボード</button>
-        <button class=${tab === 'log' ? 'on' : ''} onClick=${() => setTab('log')} title=${runAct ? runAct.name + ' を記録中' : ''}>
-          ログ ${runAct && html`<span class="runic">${runAct.icon}</span>`}
-        </button>
-      </nav>
+      <strong class="ptitle">${TABS.find(t => t[0] === tab)[2]}${tab !== 'record' && runAct ? html` <small class="runic" title=${runAct.name + ' を記録中'}>${runAct.icon}</small>` : ''}</strong>
+      <nav class="tabs">${TABS.map(t => tabBtn(t, false))}</nav>
       <span class=${'sync' + (online ? '' : ' off')} title=${online ? '同期中' : '同期できていません'}></span>
       <${DotMenu} label="アカウント" render=${close => html`
         <div class="msec" style="font-weight:400">${session.user.email}</div>
@@ -1486,10 +1558,11 @@ function Main({ session }) {
         <div class="msep"></div>
         <${MI} icon="⎋" label="ログアウト" onClick=${() => { close(); sb.auth.signOut() }} />`} />
     </header>
-    ${tab === 'log' ? html`<${LogView} L=${log} />`
+    ${tab !== 'inbox' && tab !== 'board' ? html`<${LogView} key=${tab} L=${log} sub=${tab} />`
       : loading ? html`<div class="empty">読み込み中…</div>`
       : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} act=${act} />`
       : html`<${Board} items=${items} columns=${columns} act=${act} drag=${drag} setDrag=${setDrag} />`}
+    <nav class="bnav" aria-label="画面の切り替え">${TABS.map(t => tabBtn(t, true))}</nav>
     ${toast && html`<div class="toast" key=${toast.k} role="status">
         <span>${toast.msg}</span>
         ${toast.undo && html`<button onClick=${() => { const u = toast.undo; setToast(null); u() }}>元に戻す</button>`}
