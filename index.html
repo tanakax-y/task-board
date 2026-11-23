@@ -257,6 +257,20 @@ body.drop-inbox [data-drop="inbox"] { outline: 2px dashed var(--accent); outline
 .board-wrap { display: flex; flex-direction: column; height: calc(100dvh - var(--top-h) - env(safe-area-inset-top)); }
 .board-wrap .board { flex: 1; min-height: 0; height: auto; }
 .board-dock { margin: 10px 12px 0; }
+.colnav { display: none; }
+@media (max-width: 640px) {
+  .board-wrap { position: relative; }
+  .board-wrap .board { padding-bottom: 46px; }
+  .colnav {
+    display: flex; gap: 2px; position: absolute; left: 50%; bottom: 10px; translate: -50% 0; max-width: calc(100% - 24px); overflow-x: auto;
+    padding: 3px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow);
+    scrollbar-width: none; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .colnav::-webkit-scrollbar { display: none; }
+  .colnav button { flex: none; display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .colnav button b { font-weight: 600; font-size: 10.5px; font-variant-numeric: tabular-nums; opacity: .8; }
+  .colnav button.on { background: var(--accent); color: #fff; font-weight: 600; }
+}
 .catbar { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 1px; }
 .catbar::-webkit-scrollbar { display: none; }
 .catbar .chip { flex: none; }
@@ -1305,6 +1319,22 @@ function Board({ items, columns, categories, act, openDetail, openCats }) {
   }, [items, columns])
   // 絞り込み中に追加したカードはそのカテゴリにする
   const addCard = async (text, colId) => { await act.addItem(text, colId, activeFilter ? { category_id: activeFilter } : {}) }
+  // スクロールバーのすぐ上の小さな列一覧（今見ている列を強調、タップでその列へ）
+  const [curCol, setCurCol] = useState(null)
+  const colEls = () => [...(boardRef.current?.querySelectorAll('.col[data-col]') || [])]
+  const syncCur = () => {
+    const b = boardRef.current; if (!b) return
+    const bl = b.getBoundingClientRect().left
+    let best = null, bd = Infinity
+    for (const el of colEls()) { const d = Math.abs(el.getBoundingClientRect().left - bl - 12); if (d < bd) { bd = d; best = el.dataset.col } }
+    setCurCol(best)
+  }
+  useEffect(syncCur, [columns.length])
+  const jumpTo = id => {
+    const b = boardRef.current, el = colEls().find(e => e.dataset.col === id); if (!b || !el) return
+    b.scrollTo({ left: b.scrollLeft + el.getBoundingClientRect().left - b.getBoundingClientRect().left - 12, behavior: 'smooth' })
+  }
+  const shown = c => { const all = byCol[c.id] || []; return activeFilter ? all.filter(x => x.category_id === activeFilter).length : all.length }
   return html`
     <div class="board-wrap">
       <${Dock} cls="board-dock">
@@ -1314,7 +1344,7 @@ function Board({ items, columns, categories, act, openDetail, openCats }) {
           <button class="chip" onClick=${openCats} title="カテゴリの追加・色の変更">⚙ カテゴリ</button>
         </div>
       <//>
-      <main ref=${boardRef} class=${'board' + (dnd.drag ? ' is-dragging' : '')}>
+      <main ref=${boardRef} class=${'board' + (dnd.drag ? ' is-dragging' : '')} onScroll=${syncCur}>
         ${columns.map((c, i) => {
           const all = byCol[c.id] || []
           return html`<${Column} key=${c.id} col=${c} idx=${i} total=${columns.length} cards=${activeFilter ? all.filter(x => x.category_id === activeFilter) : all} allCount=${all.length}
@@ -1326,6 +1356,10 @@ function Board({ items, columns, categories, act, openDetail, openCats }) {
             : html`<button class="add-btn" onClick=${() => setAddingCol(true)}>＋ 列を追加</button>`}
         </section>
       </main>
+      ${columns.length > 0 && html`
+        <nav class="colnav" aria-label="列の一覧">${columns.map(c => html`
+          <button key=${c.id} class=${curCol === c.id ? 'on' : ''} aria-current=${curCol === c.id ? 'true' : undefined} onClick=${() => jumpTo(c.id)}>${c.title}<b>${shown(c)}</b></button>`)}
+        </nav>`}
     </div>
     <${DragGhost} pd=${dnd} />`
 }
