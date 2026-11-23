@@ -182,6 +182,59 @@ input { font: inherit; color: inherit; font-size: 16px; } /* 16px未満だとiPh
   .brand span { display: none; }
 }
 
+/* ---- board v2: 細いカード・右に日時・タッチ対応ドラッグ ---- */
+.card {
+  align-items: center; gap: 2px; padding: 2px 0 2px 2px; cursor: pointer;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.card .check { width: 26px; height: 26px; }
+.card .check i { width: 16px; height: 16px; }
+.card .text { font-size: 14px; line-height: 1.35; padding: 5px 2px; }
+.card .stamp { font-size: 10.5px; margin-left: 2px; }
+.card .dots { width: 26px; height: 26px; font-size: 15px; }
+.card.drop-before { box-shadow: 0 -4px 0 -1px var(--accent), var(--shadow); }
+.col-body { gap: 6px; }
+.col-head { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.col.dragging { opacity: .35; }
+.col.col-drop-before { box-shadow: -7px 0 0 -3px var(--accent); }
+.board.is-dragging { scroll-snap-type: none !important; cursor: grabbing; }
+.board.is-dragging .card:hover { box-shadow: var(--shadow); }
+.drag-ghost {
+  position: fixed; z-index: 500; pointer-events: none; transform: rotate(2.5deg);
+  background: var(--panel); border-radius: 8px; padding: 9px 12px; font-size: 14px; font-weight: 600;
+  box-shadow: 0 12px 28px rgba(9,30,66,.32); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.drag-ghost.col { background: var(--col); border: 2px solid var(--accent); padding: 12px; }
+body.drop-inbox [data-drop="inbox"] { outline: 2px dashed var(--accent); outline-offset: -3px; border-radius: 8px; }
+.row .text { cursor: pointer; }
+.imeta { display: inline-flex; gap: 6px; margin-left: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; vertical-align: 1px; text-decoration: none; }
+.imeta .sp { font-variant-numeric: tabular-nums; }
+.imeta .ok { color: var(--done); }
+
+/* item detail */
+.dt-top { display: flex; align-items: flex-start; gap: 6px; }
+.dt-title { flex: 1; border: 0; outline: none; resize: none; overflow: hidden; background: transparent; color: var(--text); font: inherit; font-size: 18px; font-weight: 700; line-height: 1.4; padding: 2px 0; }
+.dt-title:focus { box-shadow: 0 2px 0 var(--accent); }
+.dt-title.done { text-decoration: line-through; color: var(--muted); }
+.dt-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px 34px; font-size: 12px; color: var(--muted); }
+.dt-meta select { font: inherit; font-size: 14px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.dt-sec { margin-top: 16px; }
+.dt-sec > label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.dt-note { width: 100%; min-height: 72px; resize: none; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 16px; line-height: 1.5; padding: 8px 10px; outline: none; }
+.dt-note:focus { border-color: var(--accent); }
+.pbar { height: 4px; border-radius: 2px; background: var(--panel2); overflow: hidden; margin-bottom: 4px; }
+.pbar i { display: block; height: 100%; background: var(--done); transition: width .2s; }
+.subs { list-style: none; }
+.sub { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border); }
+.sub input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; padding: 8px 4px; font-size: 16px; color: var(--text); }
+.sub.done input { text-decoration: line-through; color: var(--muted); }
+.sub .x { width: 32px; height: 32px; flex: none; border-radius: 6px; color: var(--muted); font-size: 18px; }
+.sub .x:hover { background: var(--panel2); color: var(--danger); }
+.sub-add { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
+.sub-add > span { width: 28px; text-align: center; color: var(--muted); font-size: 18px; flex: none; }
+.sub-add input { flex: 1; min-width: 0; border: 0; border-bottom: 1px dashed var(--border); background: transparent; outline: none; padding: 8px 2px; font-size: 16px; color: var(--text); }
+.sub-add input:focus { border-bottom-color: var(--accent); }
+
 /* ---- action log ---- */
 .logv { max-width: 760px; margin: 0 auto; padding: 12px max(12px, env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
 .runic { font-size: 14px; line-height: 1; animation: blink 2s ease-in-out infinite; }
@@ -527,6 +580,15 @@ function useBoard(userId, notify) {
         setColumns(p => p.map(c => (c.id === id ? { ...c, title } : c)))
         const { error } = await sb.from('tb_columns').update({ title }).eq('id', id); fail(error)
       },
+      // ドラッグで列を beforeId の直前へ（null なら一番右）
+      async reorderColumn(id, beforeId) {
+        const list = colsRef.current.filter(c => c.id !== id)
+        const idx = beforeId ? list.findIndex(c => c.id === beforeId) : -1
+        const position = idx === -1 ? (list.length ? list[list.length - 1].position + 1 : 0)
+          : idx === 0 ? list[0].position - 1 : (list[idx - 1].position + list[idx].position) / 2
+        setColumns(p => p.map(c => (c.id === id ? { ...c, position } : c)).sort((x, y) => x.position - y.position))
+        const { error } = await sb.from('tb_columns').update({ position }).eq('id', id); fail(error)
+      },
       async shiftColumn(id, dir) {
         const cols = [...colsRef.current], i = cols.findIndex(c => c.id === id), j = i + dir
         if (i < 0 || j < 0 || j >= cols.length) return
@@ -602,16 +664,15 @@ const MI = ({ icon, label, onClick, danger }) => html`
   <button class=${'mi' + (danger ? ' danger' : '')} role="menuitem" onClick=${onClick}><span class="ic">${icon}</span>${label}</button>`
 
 /* ================= inbox ================= */
-function InboxRow({ item, columns, act, editing, setEditing }) {
+function InboxRow({ item, columns, act, openDetail }) {
   return html`
     <li class=${'row' + (item.done ? ' done' : '')}>
       <${Check} done=${item.done} onToggle=${() => act.toggle(item)} />
-      ${editing
-        ? html`<${EditInput} value=${item.content} onSave=${t => { act.update(item.id, { content: t }); setEditing(null) }} onCancel=${() => setEditing(null)} />`
-        : html`<span class="text" onDblClick=${() => setEditing(item.id)}>${item.content}</span>`}
+      <span class="text" role="button" tabindex="0" title="タップで詳細（補足・小タスク）" onClick=${() => openDetail(item.id)}
+        onKeyDown=${e => e.key === 'Enter' && openDetail(item.id)}>${item.content}<${ItemMeta} item=${item} /></span>
       <time class="stamp" datetime=${item.created_at} title=${fmtFull(item.created_at)}>${fmtStamp(item.created_at)}</time>
       <${DotMenu} render=${close => html`
-        <${MI} icon="✎" label="編集" onClick=${() => { close(); setEditing(item.id) }} />
+        <${MI} icon="✎" label="詳細・編集" onClick=${() => { close(); openDetail(item.id) }} />
         <${MI} icon=${item.done ? '↺' : '✓'} label=${item.done ? '未済に戻す' : '処理済にする'} onClick=${() => { close(); act.toggle(item) }} />
         <div class="msec">ボード（カンバン）へ移動</div>
         ${columns.length === 0 && html`<div class="msec" style="font-weight:400">列がありません</div>`}
@@ -649,14 +710,13 @@ function Calendar({ month, setMonth, counts, day, setDay }) {
     </div>`
 }
 
-function Inbox({ items, columns, act }) {
+function Inbox({ items, columns, act, openDetail }) {
   const [text, setText] = useState('')
   const [view, setView] = useLS('tb_view', 'list')
   const [status, setStatus] = useLS('tb_status', 'all')
   const [q, setQ] = useState('')
   const [day, setDay] = useState(todayKey)
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
-  const [editing, setEditing] = useState(null)
   const inputRef = useRef()
 
   const add = () => {
@@ -682,7 +742,7 @@ function Inbox({ items, columns, act }) {
   }, [base])
   const dayList = useMemo(() => base.filter(i => dayKey(i.created_at) === day), [base, day])
 
-  const rows = list => html`<ul class="list">${list.map(i => html`<${InboxRow} key=${i.id} item=${i} columns=${columns} act=${act} editing=${editing === i.id} setEditing=${setEditing} />`)}</ul>`
+  const rows = list => html`<ul class="list">${list.map(i => html`<${InboxRow} key=${i.id} item=${i} columns=${columns} act=${act} openDetail=${openDetail} />`)}</ul>`
   const openCount = items.filter(i => !i.done).length
 
   return html`
@@ -720,25 +780,108 @@ function Inbox({ items, columns, act }) {
     </main>`
 }
 
-/* ================= board ================= */
-function Card({ item, col, columns, act, drag, setDrag, over, setOver }) {
-  const [editing, setEditing] = useState(false)
-  const cls = 'card' + (item.done ? ' done' : '') + (drag === item.id ? ' dragging' : '') + (over && over.before === item.id && drag !== item.id ? ' drop-before' : '')
+/* ================= item detail（補足メモ・小タスク） ================= */
+const autoGrow = el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' } }
+
+const ItemMeta = ({ item }) => {
+  const subs = item.subtasks || [], d = subs.filter(s => s.done).length
+  if (!item.note && !subs.length) return ''
+  return html`<span class="imeta">${item.note ? html`<span title="補足メモあり">📝</span>` : ''}${subs.length ? html`<span class=${'sp' + (d === subs.length ? ' ok' : '')} title="小タスク">☑ ${d}/${subs.length}</span>` : ''}</span>`
+}
+
+function SubRow({ s, onToggle, onText, onDelete }) {
+  const [v, setV] = useState(s.text)
+  useEffect(() => setV(s.text), [s.text])
   return html`
-    <div class=${cls} draggable=${!editing}
-      onDragStart=${e => { e.dataTransfer.setData('text/plain', item.id); e.dataTransfer.effectAllowed = 'move'; setDrag(item.id) }}
-      onDragEnd=${() => { setDrag(null); setOver(null) }}
-      onDragOver=${e => { if (!drag) return; e.preventDefault(); e.stopPropagation(); if (!over || over.before !== item.id) setOver({ col: col.id, before: item.id }) }}
-      onDrop=${e => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); setOver(null); id && act.move(id, col.id, item.id, { silent: true }) }}>
+    <li class=${'sub' + (s.done ? ' done' : '')}>
+      <${Check} done=${s.done} onToggle=${onToggle} />
+      <input value=${v} aria-label="小タスク" onInput=${e => setV(e.target.value)} onKeyDown=${e => isEnter(e) && e.target.blur()}
+        onBlur=${() => { const t = v.trim(); if (!t) setV(s.text); else if (t !== s.text) onText(t) }} />
+      <button class="x" aria-label="小タスクを削除" title="削除" onClick=${onDelete}>×</button>
+    </li>`
+}
+
+function ItemDetail({ item, columns, act, onClose }) {
+  const [title, setTitle] = useState(item.content)
+  const [note, setNote] = useState(item.note || '')
+  const [newSub, setNewSub] = useState('')
+  const focus = useRef(null), titleRef = useRef(), noteRef = useRef()
+  const latest = useRef(); latest.current = { title, note, item }
+  const subs = item.subtasks || []
+  // 他の端末で変わった内容を反映（入力中の欄は上書きしない）
+  useEffect(() => { if (focus.current !== 'title') setTitle(item.content) }, [item.content])
+  useEffect(() => { if (focus.current !== 'note') setNote(item.note || '') }, [item.note])
+  useEffect(() => { autoGrow(titleRef.current); autoGrow(noteRef.current) }, [title, note])
+  const saveTitle = () => { focus.current = null; const t = latest.current.title.trim(); if (!t) return setTitle(item.content); if (t !== latest.current.item.content) act.update(item.id, { content: t }) }
+  const saveNote = () => { focus.current = null; if (latest.current.note !== (latest.current.item.note || '')) act.update(item.id, { note: latest.current.note }) }
+  // 閉じたときに未保存の入力があれば保存
+  useEffect(() => () => {
+    const { title: t, note: n, item: it } = latest.current
+    const patch = {}
+    if (t.trim() && t.trim() !== it.content) patch.content = t.trim()
+    if (n !== (it.note || '')) patch.note = n
+    if (Object.keys(patch).length) act.update(it.id, patch)
+  }, [])
+  const setSubs = s => act.update(item.id, { subtasks: s })
+  const addSub = () => { const t = newSub.trim(); if (!t) return; setSubs([...subs, { id: uuid(), text: t, done: false }]); setNewSub('') }
+  const doneN = subs.filter(s => s.done).length
+  return html`<${Modal} title="詳細" onClose=${onClose}>
+    <div class="dt-top">
       <${Check} done=${item.done} onToggle=${() => act.toggle(item)} />
-      <div class="card-main">
-        ${editing
-          ? html`<${EditInput} value=${item.content} onSave=${t => { act.update(item.id, { content: t }); setEditing(false) }} onCancel=${() => setEditing(false)} />`
-          : html`<div class="text" onDblClick=${() => setEditing(true)}>${item.content}</div>`}
-        <time class="stamp" datetime=${item.created_at} title=${fmtFull(item.created_at)}>${fmtStamp(item.created_at)}</time>
+      <textarea ref=${titleRef} class=${'dt-title' + (item.done ? ' done' : '')} rows="1" value=${title} aria-label="タイトル"
+        onFocus=${() => { focus.current = 'title' }} onInput=${e => { setTitle(e.target.value); autoGrow(e.target) }} onBlur=${saveTitle}
+        onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); e.target.blur() } }}></textarea>
+    </div>
+    <div class="dt-meta">
+      <span>🕒 ${fmtFull(item.created_at)}</span>
+      <select value=${item.column_id || ''} aria-label="置き場所" onChange=${e => act.move(item.id, e.target.value || null)}>
+        <option value="">📥 Inbox</option>
+        ${columns.map(c => html`<option value=${c.id}>🗂️ ${c.title}</option>`)}
+      </select>
+    </div>
+    <div class="dt-sec">
+      <label>補足・メモ</label>
+      <textarea ref=${noteRef} class="dt-note" rows="3" value=${note} placeholder="詳しい内容や補足を書く…"
+        onFocus=${() => { focus.current = 'note' }} onInput=${e => { setNote(e.target.value); autoGrow(e.target) }} onBlur=${saveNote}></textarea>
+    </div>
+    <div class="dt-sec">
+      <label><span>小タスク</span>${subs.length > 0 && html`<span>${doneN} / ${subs.length}</span>`}</label>
+      ${subs.length > 0 && html`<div class="pbar"><i style=${`width:${(doneN / subs.length) * 100}%`}></i></div>`}
+      <ul class="subs">
+        ${subs.map(s => html`<${SubRow} key=${s.id} s=${s}
+          onToggle=${() => setSubs(subs.map(x => (x.id === s.id ? { ...x, done: !x.done } : x)))}
+          onText=${t => setSubs(subs.map(x => (x.id === s.id ? { ...x, text: t } : x)))}
+          onDelete=${() => setSubs(subs.filter(x => x.id !== s.id))} />`)}
+      </ul>
+      <div class="sub-add">
+        <span>＋</span>
+        <input value=${newSub} placeholder="小タスクを追加" enterkeyhint="enter" aria-label="小タスクを追加"
+          onInput=${e => setNewSub(e.target.value)} onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); addSub() } }} />
+        <button class="btn" disabled=${!newSub.trim()} onMouseDown=${e => e.preventDefault()} onClick=${addSub}>追加</button>
       </div>
+    </div>
+    <div class="acts">
+      <button class="btn danger" onClick=${() => { onClose(); act.remove(item) }}>削除</button>
+      <span class="grow"></span>
+      <button class="btn" onClick=${onClose}>完了</button>
+    </div>
+  <//>`
+}
+
+/* ================= board ================= */
+const NO_DRAG = 'button, input, textarea, select, a, .menu'
+
+function Card({ item, col, columns, act, openDetail, dnd }) {
+  const cls = 'card' + (item.done ? ' done' : '') + (dnd.isDragging('card', item.id) ? ' dragging' : '') + (dnd.target?.before === item.id ? ' drop-before' : '')
+  return html`
+    <div class=${cls} data-id=${item.id}
+      onPointerDown=${e => dnd.press(e, 'card', item.id, e.currentTarget, item.content)}
+      onClick=${() => { if (!dnd.consumeClick()) openDetail(item.id) }}>
+      <${Check} done=${item.done} onToggle=${() => act.toggle(item)} />
+      <div class="text">${item.content}<${ItemMeta} item=${item} /></div>
+      <time class="stamp" datetime=${item.created_at} title=${fmtFull(item.created_at)}>${fmtStamp(item.created_at)}</time>
       <${DotMenu} render=${close => html`
-        <${MI} icon="✎" label="編集" onClick=${() => { close(); setEditing(true) }} />
+        <${MI} icon="✎" label="詳細・編集" onClick=${() => { close(); openDetail(item.id) }} />
         <${MI} icon=${item.done ? '↺' : '✓'} label=${item.done ? '未済に戻す' : '処理済にする'} onClick=${() => { close(); act.toggle(item) }} />
         ${columns.length > 1 && html`<div class="msec">別の列へ移動</div>`}
         ${columns.filter(c => c.id !== col.id).map(c => html`<${MI} key=${c.id} icon="→" label=${c.title} onClick=${() => { close(); act.move(item.id, c.id) }} />`)}
@@ -762,16 +905,18 @@ function AddForm({ placeholder, button, onAdd, onClose, keepOpen }) {
     </div>`
 }
 
-function Column({ col, idx, total, cards, columns, act, drag, setDrag, over, setOver }) {
+function Column({ col, idx, total, cards, columns, act, openDetail, dnd }) {
   const [adding, setAdding] = useState(false)
   const [renaming, setRenaming] = useState(false)
-  const isOverEnd = over && over.col === col.id && !over.before
+  const t = dnd.target
+  const cls = 'col' + (dnd.isDragging('col', col.id) ? ' dragging' : '') + (dnd.drag?.kind === 'col' && t?.before === col.id ? ' col-drop-before' : '')
   return html`
-    <section class="col" aria-label=${col.title}>
-      <div class="col-head">
+    <section class=${cls} data-col=${col.id} aria-label=${col.title}>
+      <div class="col-head" title="ドラッグで列を並べ替え（スマホは長押し）"
+        onPointerDown=${e => !renaming && dnd.press(e, 'col', col.id, e.currentTarget.parentElement, col.title)}>
         ${renaming
-          ? html`<${EditInput} value=${col.title} onSave=${t => { act.renameColumn(col.id, t); setRenaming(false) }} onCancel=${() => setRenaming(false)} />`
-          : html`<h3 onDblClick=${() => setRenaming(true)} title="ダブルクリックで名前を変更">${col.title}</h3>`}
+          ? html`<${EditInput} value=${col.title} onSave=${v => { act.renameColumn(col.id, v); setRenaming(false) }} onCancel=${() => setRenaming(false)} />`
+          : html`<h3 onDblClick=${() => setRenaming(true)}>${col.title}</h3>`}
         <span class="count">${cards.filter(c => !c.done).length}/${cards.length}</span>
         <${DotMenu} label="列のメニュー" render=${close => html`
           <${MI} icon="✎" label="列の名前を変更" onClick=${() => { close(); setRenaming(true) }} />
@@ -784,22 +929,124 @@ function Column({ col, idx, total, cards, columns, act, drag, setDrag, over, set
             if (confirm(`列「${col.title}」を削除しますか？${cards.length ? `\n中のカード ${cards.length} 件は Inbox に戻ります。` : ''}`)) act.removeColumn(col)
           }} />`} />
       </div>
-      <div class=${'col-body' + (isOverEnd ? ' drop-end' : '')}
-        onDragOver=${e => { if (!drag) return; e.preventDefault(); if (!isOverEnd) setOver({ col: col.id, before: null }) }}
-        onDrop=${e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); setOver(null); id && act.move(id, col.id, null, { silent: true }) }}>
-        ${cards.map(it => html`<${Card} key=${it.id} item=${it} col=${col} columns=${columns} act=${act} drag=${drag} setDrag=${setDrag} over=${over} setOver=${setOver} />`)}
+      <div class=${'col-body' + (dnd.drag?.kind === 'card' && t?.col === col.id && !t.before ? ' drop-end' : '')}>
+        ${cards.map(it => html`<${Card} key=${it.id} item=${it} col=${col} columns=${columns} act=${act} openDetail=${openDetail} dnd=${dnd} />`)}
       </div>
       <div class="col-foot">
         ${adding
-          ? html`<${AddForm} placeholder="カードの内容…" button="追加" keepOpen onAdd=${t => act.addItem(t, col.id)} onClose=${() => setAdding(false)} />`
+          ? html`<${AddForm} placeholder="カードの内容…" button="追加" keepOpen onAdd=${v => act.addItem(v, col.id)} onClose=${() => setAdding(false)} />`
           : html`<button class="add-btn" onClick=${() => setAdding(true)}>＋ カードを追加</button>`}
       </div>
     </section>`
 }
 
-function Board({ items, columns, act, drag, setDrag }) {
-  const [over, setOver] = useState(null)
+// マウスでもタッチでも使えるドラッグ＆ドロップ。
+// マウス: 5px動かしたら開始 / タッチ: 長押し(0.35秒)で開始（それまでに指を動かしたら普通のスクロール）
+function useDnd(boardRef, act) {
+  const [drag, setDrag] = useState(null)       // { kind, id, label, w, offX, offY }
+  const [pos, setPos] = useState(null)         // { x, y }
+  const [target, setTarget] = useState(null)   // card: { col, before } / { inbox: true }, col: { before }
+  const dragRef = useRef(null), targetRef = useRef(null), posRef = useRef(null), clickBlock = useRef(false)
+
+  const setT = t => {
+    if (JSON.stringify(t) === JSON.stringify(targetRef.current)) return
+    targetRef.current = t; setTarget(t)
+    document.body.classList.toggle('drop-inbox', !!t?.inbox)
+  }
+  const computeTarget = (x, y) => {
+    const d = dragRef.current; if (!d) return
+    const el = document.elementFromPoint(x, y)
+    if (d.kind === 'card') {
+      if (el?.closest('[data-drop="inbox"]')) return setT({ inbox: true })
+      const colEl = el?.closest('.col[data-col]')
+      if (!colEl) return setT(null)
+      let before = null
+      for (const c of colEl.querySelectorAll('.card[data-id]')) {
+        if (c.dataset.id === d.id) continue
+        const r = c.getBoundingClientRect()
+        if (y < r.top + r.height / 2) { before = c.dataset.id; break }
+      }
+      setT({ col: colEl.dataset.col, before })
+    } else {
+      let before = null
+      for (const c of boardRef.current.querySelectorAll('.col[data-col]')) {
+        if (c.dataset.col === d.id) continue
+        const r = c.getBoundingClientRect()
+        if (x < r.left + r.width / 2) { before = c.dataset.col; break }
+      }
+      setT({ before })
+    }
+  }
+  // 端に近づいたら自動スクロール
+  useEffect(() => {
+    if (!drag) return
+    const iv = setInterval(() => {
+      const p = posRef.current, b = boardRef.current; if (!p || !b) return
+      const edge = 48, sp = 14
+      if (p.x < edge) b.scrollLeft -= sp; else if (p.x > innerWidth - edge) b.scrollLeft += sp
+      if (drag.kind === 'card') {
+        const body = document.elementFromPoint(p.x, p.y)?.closest('.col')?.querySelector('.col-body')
+        if (body) { const r = body.getBoundingClientRect(); if (p.y < r.top + 36) body.scrollTop -= 10; else if (p.y > r.bottom - 36) body.scrollTop += 10 }
+      }
+      computeTarget(p.x, p.y)
+    }, 30)
+    return () => clearInterval(iv)
+  }, [drag])
+
+  const press = (e, kind, id, el, label) => {
+    if (e.button > 0 || e.target.closest(NO_DRAG)) return
+    const touch = e.pointerType !== 'mouse'
+    const sx = e.clientX, sy = e.clientY, r = el.getBoundingClientRect()
+    let started = false, timer
+    const start = (x, y) => {
+      started = true
+      try { navigator.vibrate?.(12) } catch {}
+      const d = { kind, id, label, w: r.width, h: Math.min(r.height, 120), offX: sx - r.left, offY: Math.min(sy - r.top, 40) }
+      dragRef.current = d; posRef.current = { x, y }
+      setDrag(d); setPos({ x, y }); computeTarget(x, y)
+    }
+    const move = ev => {
+      const x = ev.clientX, y = ev.clientY
+      if (!started) {
+        if (Math.hypot(x - sx, y - sy) > (touch ? 10 : 5)) { if (touch) cleanup(); else start(x, y) }
+        return
+      }
+      posRef.current = { x, y }; setPos({ x, y }); computeTarget(x, y)
+    }
+    const blockTouch = ev => { if (started) ev.preventDefault() }   // ドラッグ中は画面スクロールさせない
+    const finish = ok => {
+      cleanup()
+      if (!started) return
+      clickBlock.current = true; setTimeout(() => { clickBlock.current = false }, 50)
+      const d = dragRef.current, t = targetRef.current
+      dragRef.current = null; setDrag(null); setPos(null); setT(null)
+      if (!ok || !t) return
+      if (d.kind === 'card') t.inbox ? act.move(d.id, null) : act.move(d.id, t.col, t.before, { silent: true })
+      else act.reorderColumn(d.id, t.before)
+    }
+    const up = () => finish(true), cancel = () => finish(false)
+    const key = ev => ev.key === 'Escape' && finish(false)
+    function cleanup() {
+      clearTimeout(timer)
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', cancel)
+      removeEventListener('touchmove', blockTouch); removeEventListener('keydown', key)
+    }
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', cancel)
+    addEventListener('touchmove', blockTouch, { passive: false }); addEventListener('keydown', key)
+    if (touch) timer = setTimeout(() => start(sx, sy), 350)
+  }
+
+  return {
+    drag, pos, target, press,
+    isDragging: (kind, id) => drag?.kind === kind && drag.id === id,
+    consumeClick: () => { const b = clickBlock.current; clickBlock.current = false; return b },
+  }
+}
+
+function Board({ items, columns, act, openDetail }) {
   const [addingCol, setAddingCol] = useState(false)
+  const boardRef = useRef()
+  const dnd = useDnd(boardRef, act)
   const byCol = useMemo(() => {
     const m = {}
     for (const c of columns) m[c.id] = []
@@ -807,16 +1054,18 @@ function Board({ items, columns, act, drag, setDrag }) {
     for (const k in m) m[k].sort((a, b) => a.position - b.position)
     return m
   }, [items, columns])
+  const { drag, pos, target } = dnd
   return html`
-    <main class="board" onDragLeave=${e => { if (!e.relatedTarget) setOver(null) }}>
+    <main ref=${boardRef} class=${'board' + (drag ? ' is-dragging' : '')}>
       ${columns.map((c, i) => html`<${Column} key=${c.id} col=${c} idx=${i} total=${columns.length} cards=${byCol[c.id] || []} columns=${columns}
-          act=${act} drag=${drag} setDrag=${setDrag} over=${over} setOver=${setOver} />`)}
-      <section class="col add-col">
+          act=${act} openDetail=${openDetail} dnd=${dnd} />`)}
+      <section class=${'col add-col' + (drag?.kind === 'col' && target && !target.before ? ' col-drop-before' : '')}>
         ${addingCol
           ? html`<${AddForm} placeholder="列の名前…" button="列を追加" onAdd=${t => act.addColumn(t)} onClose=${() => setAddingCol(false)} />`
           : html`<button class="add-btn" onClick=${() => setAddingCol(true)}>＋ 列を追加</button>`}
       </section>
-    </main>`
+    </main>
+    ${drag && pos && html`<div class=${'drag-ghost ' + drag.kind} style=${{ left: pos.x - drag.offX, top: pos.y - drag.offY, width: drag.w }}>${drag.label}</div>`}`
 }
 
 /* ================= action log + daily ================= */
@@ -1528,19 +1777,16 @@ function Main({ session }) {
   const [savedTab, setTab] = useLS('tb_tab', 'inbox')
   // 旧バージョンの「ログ」タブを開いていた場合は、そのとき見ていた画面へ
   const tab = savedTab === 'log' ? localStorage.getItem('tb_log_sub') || 'record' : TABS.some(t => t[0] === savedTab) ? savedTab : 'inbox'
-  const [drag, setDrag] = useState(null)
-  const [tabDrop, setTabDrop] = useState(false)
+  const [detailId, setDetailId] = useState(null)
+  const detailItem = detailId && items.find(i => i.id === detailId)
 
   const inboxItems = useMemo(() => items.filter(i => !i.column_id), [items])
   const openInbox = inboxItems.filter(i => !i.done).length
   const tabBtn = ([k, icon, label], bottom) => {
     const isRec = k === 'record' && runAct
-    const props = k !== 'inbox' ? {} : {
-      onDragOver: e => { if (drag) { e.preventDefault(); setTabDrop(true) } }, onDragLeave: () => setTabDrop(false),
-      onDrop: e => { e.preventDefault(); setTabDrop(false); const id = e.dataTransfer.getData('text/plain') || drag; setDrag(null); id && act.move(id, null) },
-      title: 'ボードのカードをここへドラッグすると Inbox に戻せます',
-    }
-    return html`<button key=${k} class=${(tab === k ? 'on' : '') + (k === 'inbox' && tabDrop ? ' drop' : '')} onClick=${() => setTab(k)} aria-current=${tab === k ? 'page' : undefined} ...${props}>
+    // ボードのカードを Inbox タブへドラッグすると Inbox に戻せる
+    const props = k === 'inbox' ? { 'data-drop': 'inbox', title: 'ボードのカードをここへドラッグすると Inbox に戻せます' } : {}
+    return html`<button key=${k} class=${tab === k ? 'on' : ''} onClick=${() => setTab(k)} aria-current=${tab === k ? 'page' : undefined} ...${props}>
       ${bottom ? html`<span class=${'bi' + (isRec ? ' runic' : '')}>${isRec ? runAct.icon : icon}</span>${label}` : html`${k === 'inbox' ? '' : icon + ' '}${label}${isRec ? html` <span class="runic">${runAct.icon}</span>` : ''}`}
       ${k === 'inbox' && openInbox > 0 && html`<span class="badge">${openInbox}</span>`}
     </button>`
@@ -1560,9 +1806,10 @@ function Main({ session }) {
     </header>
     ${tab !== 'inbox' && tab !== 'board' ? html`<${LogView} key=${tab} L=${log} sub=${tab} />`
       : loading ? html`<div class="empty">読み込み中…</div>`
-      : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} act=${act} />`
-      : html`<${Board} items=${items} columns=${columns} act=${act} drag=${drag} setDrag=${setDrag} />`}
+      : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} act=${act} openDetail=${setDetailId} />`
+      : html`<${Board} items=${items} columns=${columns} act=${act} openDetail=${setDetailId} />`}
     <nav class="bnav" aria-label="画面の切り替え">${TABS.map(t => tabBtn(t, true))}</nav>
+    ${detailItem && html`<${ItemDetail} key=${detailItem.id} item=${detailItem} columns=${columns} act=${act} onClose=${() => setDetailId(null)} />`}
     ${toast && html`<div class="toast" key=${toast.k} role="status">
         <span>${toast.msg}</span>
         ${toast.undo && html`<button onClick=${() => { const u = toast.undo; setToast(null); u() }}>元に戻す</button>`}
