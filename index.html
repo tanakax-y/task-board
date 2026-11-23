@@ -428,10 +428,14 @@ button.lrow:hover { background: var(--hover); }
 .dnum { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .dsub { font-size: 12px; line-height: 1.3; color: var(--muted); font-weight: 600; }
 .drow { gap: 8px; padding: 6px 6px 6px 10px; }
-.dlist .drow { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.dlist .drow.dragging { opacity: .35; }
-.dlist .drow.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
-.dlist .drow.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
+.dlist .drow, .slist > li { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dlist .drow.dragging, .slist > li.dragging { opacity: .35; }
+.dlist .drow.drop-before, .slist > li.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
+.dlist .drow.drop-after, .slist > li.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
+.slist .grip { color: var(--muted); font-size: 12px; letter-spacing: -3px; cursor: grab; padding: 0 4px 0 0; flex: none; }
+.ricon.rst { color: var(--muted); font-size: 16px; }
+.ricon:disabled { opacity: .3; cursor: default; }
+.dadd { margin-top: 6px; border: 1.5px dashed var(--border); text-align: center; background: transparent; }
 .dic { width: 30px; text-align: center; font-size: 22px; flex: none; }
 .dmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dmain small { font-size: 12px; color: var(--muted); }
@@ -2001,11 +2005,37 @@ function LogModal({ L, entry, onClose }) {
 }
 
 /* ---- daily (ピンポイントの時刻・値) ---- */
-function DailyRow({ it, value, isToday, onSave, onHist, pd, before, last }) {
+// 縦の一覧を並べ替える（スマホは長押し→ドラッグ、PCはそのままドラッグ）。入力欄・ボタンからは始まらない
+function useRowSort(rowSel, onReorder) {
+  const [before, setBefore] = useState(undefined)
+  const beforeRef = useRef(undefined)
+  const setB = b => { if (b === beforeRef.current) return; beforeRef.current = b; setBefore(b) }
+  const pd = usePointerDrag({
+    onMove: (x, y, dr) => {
+      const el = document.elementFromPoint(x, y)?.closest(rowSel + '[data-id]')
+      if (!el) return
+      if (el.dataset.id === dr.id) return setB(undefined)
+      const r = el.getBoundingClientRect()
+      if (y < r.top + r.height / 2) return setB(el.dataset.id)
+      let n = el.nextElementSibling
+      while (n && n.dataset.id === dr.id) n = n.nextElementSibling
+      setB(n?.dataset.id ?? null)
+    },
+    onDrop: dr => { if (beforeRef.current !== undefined) onReorder(dr.id, beforeRef.current) },
+    onEnd: () => setB(undefined),
+  })
+  return {
+    pd,
+    props: (id, label) => ({ 'data-id': id, onPointerDown: e => pd.press(e, { kind: 'row', id }, e.currentTarget, label) }),
+    cls: (id, last) => (pd.isDragging('row', id) ? ' dragging' : '') + (before === id ? ' drop-before' : '') + (before === null && last ? ' drop-after' : ''),
+  }
+}
+
+function DailyRow({ it, value, isToday, onSave, onHist, sort, last }) {
   const [draft, setDraft] = useState(value)
-  // 長押し（PCはドラッグ）で並べ替え。入力欄・ボタンからは始まらない
-  const dragCls = (pd.isDragging('daily', it.id) ? ' dragging' : '') + (before === it.id ? ' drop-before' : '') + (before === null && last ? ' drop-after' : '')
-  const dp = { 'data-id': it.id, onPointerDown: e => pd.press(e, { kind: 'daily', id: it.id }, e.currentTarget, `${it.icon} ${it.name}`) }
+  const pd = sort.pd
+  const dragCls = sort.cls(it.id, last)
+  const dp = sort.props(it.id, `${it.icon} ${it.name}`)
   const focused = useRef(false)
   useEffect(() => { if (!focused.current) setDraft(value) }, [value])
   const commit = v => { focused.current = false; const t = String(v).trim(); if (t !== value) onSave(t) }
@@ -2016,7 +2046,7 @@ function DailyRow({ it, value, isToday, onSave, onHist, pd, before, last }) {
       <span class="dic">${it.icon}</span>
       <${Check} done=${value === '1'} onToggle=${() => onSave(value === '1' ? '' : '1')} />
       <span class="text" onClick=${() => { if (!pd.consumeClick()) onSave(value === '1' ? '' : '1') }}>${it.name}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}</span>
-      <button class="ricon" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
+      <button class="ricon" tabindex="-1" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
     </li>`
   const field = it.kind === 'check'
     ? html`<div><${Check} done=${value === '1'} onToggle=${() => onSave(value === '1' ? '' : '1')} /></div>`
@@ -2029,9 +2059,11 @@ function DailyRow({ it, value, isToday, onSave, onHist, pd, before, last }) {
     <li class=${'row drow' + (value ? ' has' : '') + dragCls} ...${dp}>
       <span class="dic">${it.icon}</span>
       <div class="dmain"><small>${it.name}${suffix}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}</small>${field}</div>
-      ${it.kind === 'time' && isToday && !value && html`<button class="chip nowbtn" title="今の時刻を記録" onClick=${() => onSave(nowHM())}>今</button>`}
-      ${(it.kind === 'time' || it.kind === 'number') && html`<button class="ricon" title="グラフで推移を見る" aria-label=${it.name + 'のグラフ'} onClick=${() => onHist('chart')}>📈</button>`}
-      <button class="ricon" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
+      <button class="ricon rst" tabindex="-1" disabled=${!value && !draft} title="リセット（この日の値を消す）" aria-label=${it.name + 'をリセット'}
+        onClick=${() => { setDraft(''); if (value) onSave('') }}>↺</button>
+      ${it.kind === 'time' && isToday && html`<button class="chip nowbtn" tabindex="-1" title="今の時刻を記録" onClick=${() => onSave(nowHM())}>今</button>`}
+      ${(it.kind === 'time' || it.kind === 'number') && html`<button class="ricon" tabindex="-1" title="グラフで推移を見る" aria-label=${it.name + 'のグラフ'} onClick=${() => onHist('chart')}>📈</button>`}
+      <button class="ricon" tabindex="-1" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
     </li>`
 }
 
@@ -2052,24 +2084,8 @@ function DailyView({ L }) {
     act.setValue(it.id, day, v)
   }
   const vis = items.filter(i => !i.hidden)
-  // 項目の並べ替え（スマホは長押し→ドラッグ、PCはそのままドラッグ）
-  const [before, setBefore] = useState(undefined)
-  const beforeRef = useRef(undefined)
-  const setB = b => { if (b === beforeRef.current) return; beforeRef.current = b; setBefore(b) }
-  const pd = usePointerDrag({
-    onMove: (x, y, dr) => {
-      const el = document.elementFromPoint(x, y)?.closest('.drow[data-id]')
-      if (!el) return
-      if (el.dataset.id === dr.id) return setB(undefined)
-      const r = el.getBoundingClientRect()
-      if (y < r.top + r.height / 2) return setB(el.dataset.id)
-      let n = el.nextElementSibling
-      while (n && n.dataset.id === dr.id) n = n.nextElementSibling
-      setB(n?.dataset.id ?? null)
-    },
-    onDrop: dr => { if (beforeRef.current !== undefined) act.reorderDaily(dr.id, beforeRef.current) },
-    onEnd: () => setB(undefined),
-  })
+  const sort = useRowSort('.dlist .drow', act.reorderDaily), pd = sort.pd
+  const [adding, setAdding] = useState(false)
   return html`
     <${Dock}>
       <div class="dhead">
@@ -2082,8 +2098,10 @@ function DailyView({ L }) {
     <//>
     <div class="ghead" style="margin-top:0"><span>${day === tk ? '今日の記録' : dayLabel(day)}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 項目</button></div>
     ${vis.length ? html`<ul class=${'list dlist' + (pd.drag ? ' sorting' : '')}>${vis.map((it, i) => html`<${DailyRow} key=${it.id + day} it=${it} value=${vals[it.id] ?? ''} isToday=${day === tk}
-        onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} pd=${pd} before=${before} last=${i === vis.length - 1} />`)}</ul>`
-      : html`<div class="empty list">表示する項目がありません。「⚙ 項目」から追加・表示できます。</div>`}
+        onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} sort=${sort} last=${i === vis.length - 1} />`)}</ul>`
+      : html`<div class="empty list">表示する項目がありません。下の「＋ 項目を追加」から追加できます。</div>`}
+    <button class="add-btn dadd" tabindex="-1" onClick=${() => setAdding(true)}>＋ 項目を追加</button>
+    ${adding && html`<${DailyItemModal} L=${L} item=${null} onClose=${() => setAdding(false)} />`}
     <${DragGhost} pd=${pd} cls="dghost" />
     ${hist && html`<${HistoryModal} L=${L} item=${hist.item} mode=${hist.mode} onClose=${() => setHist(null)} />`}
     ${settings && html`<${DailySettings} L=${L} onClose=${() => setSettings(false)} />`}`
@@ -2174,14 +2192,16 @@ function DailySettings({ L, onClose, onlyHabits }) {
   const { act } = L
   const items = onlyHabits ? L.items.filter(x => x.is_habit) : L.items
   const [edit, setEdit] = useState(null)
+  const sort = useRowSort('.slist > li', act.reorderDaily)
   if (edit) return html`<${DailyItemModal} L=${L} item=${edit.id ? edit : null} onClose=${() => setEdit(null)} />`
   return html`<${Modal} title=${onlyHabits ? '習慣の設定' : 'デイリーの項目'} onClose=${onClose}>
     <p class="muted" style="font-size:13px;margin-bottom:10px">${onlyHabits ? '習慣はデイリーの項目のうち「習慣にする」をオンにしたものです。' : '目のボタンで表示・非表示。🔁 が付いた項目は習慣ページにも出ます。'}</p>
-    <ul class="list">${items.map((it, i) => html`
-      <li class=${'row' + (it.hidden ? ' done' : '')} key=${it.id}>
+    <ul class=${'list slist' + (sort.pd.drag ? ' sorting' : '')}>${items.map((it, i) => html`
+      <li class=${'row' + (it.hidden ? ' done' : '') + sort.cls(it.id, i === items.length - 1)} key=${it.id} ...${sort.props(it.id, `${it.icon} ${it.name}`)}>
+        <span class="grip" aria-hidden="true">⋮⋮</span>
         <button class="ricon" title=${it.hidden ? '表示する' : '非表示にする'} aria-label=${it.hidden ? '表示する' : '非表示にする'} onClick=${() => act.updateDaily(it.id, { hidden: !it.hidden })}>${it.hidden ? '🙈' : '👁'}</button>
         <span class="dic">${it.icon}</span>
-        <span class="text" onClick=${() => setEdit(it)}>${it.name}<small class="muted" style="margin-left:6px;font-size:11px">${DAILY_KINDS[it.kind] || ''}${it.unit ? '・' + it.unit : ''}${it.is_habit ? ` ・🔁${it.target ? '週' + it.target : ''}` : ''}</small></span>
+        <span class="text" onClick=${() => { if (!sort.pd.consumeClick()) setEdit(it) }}>${it.name}<small class="muted" style="margin-left:6px;font-size:11px">${DAILY_KINDS[it.kind] || ''}${it.unit ? '・' + it.unit : ''}${it.is_habit ? ` ・🔁${it.target ? '週' + it.target : ''}` : ''}</small></span>
         <${DotMenu} render=${close => html`
           <${MI} icon="✎" label="編集" onClick=${() => { close(); setEdit(it) }} />
           <${MI} icon="🔁" label=${it.is_habit ? '習慣から外す' : '習慣にする'} onClick=${() => { close(); act.updateDaily(it.id, { is_habit: !it.is_habit }) }} />
@@ -2190,6 +2210,7 @@ function DailySettings({ L, onClose, onlyHabits }) {
           <div class="msep"></div>
           <${MI} icon="🗑" label="削除" danger onClick=${() => { close(); if (confirm(`「${it.name}」を削除しますか？\n過去の記録もすべて消えます（元に戻せません）。\n残したい場合は非表示にしてください。`)) act.deleteDaily(it) }} />`} />
       </li>`)}</ul>
+    <${DragGhost} pd=${sort.pd} cls="dghost" />
     ${onlyHabits && !items.length && html`<div class="empty list">まだありません。下のボタンから追加するか、デイリーの項目で「習慣にする」をオンにしてください。</div>`}
     <div class="acts"><button class="btn sub" onClick=${() => setEdit({})}>＋ 項目を追加</button><span class="grow"></span><button class="btn" onClick=${onClose}>完了</button></div>
   <//>`
