@@ -519,6 +519,14 @@ button.lrow:hover { background: var(--hover); }
 .hcell.today { border-color: var(--accent); }
 .hcell.on { background: var(--done); border-color: var(--done); }
 .hcell:disabled { opacity: .3; cursor: default; }
+.vtag { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
+.vtag.miss { color: var(--danger); }
+.hcell.miss { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.hcell.off { color: var(--muted); border-style: dashed; background: var(--panel2); }
+.hcell.num { font-size: 11.5px; font-weight: 700; letter-spacing: -.3px; }
+.cnt-in { display: flex; align-items: center; gap: 8px; }
+.cnt-in input { flex: 1; min-width: 0; font-size: 22px; font-weight: 700; }
+.cnt-in span { font-weight: 600; color: var(--muted); }
 .hcell:active:not(:disabled) { transform: scale(.9); }
 @media (max-width: 520px) {
   /* スマホでは習慣名を1行使って表示し、その下に7日分のマスを並べる */
@@ -1838,7 +1846,10 @@ function Donut({ parts, total, center }) {
     </svg>`
 }
 
-const isDoneVal = (it, v) => (it.kind === 'check' ? v === '1' : v != null && v !== '')
+// 習慣の値: '1'=達成(チェック) / 数値=回数 / '0'=未達成 / '-'=非アクティブ（集計から外す）
+const isOffVal = v => v === '-'
+const isDoneVal = (it, v) => (v == null || v === '' || v === '-' ? false : it.kind === 'check' ? v === '1' : it.kind === 'number' ? parseFloat(v) > 0 : true)
+const showVal = (it, v) => (v === '-' ? '休み' : it.kind === 'check' ? (v === '1' ? '✓' : v === '0' ? '✗' : v) : it.kind === 'number' && it.unit && v !== '' ? `${v} ${it.unit}` : v)
 
 function TaskList({ list, catById, when }) {
   const [all, setAll] = useState(false)
@@ -1885,14 +1896,17 @@ function ReportView({ L, B, openLog }) {
   const habits = dItems.filter(i => i.is_habit && !i.hidden)
   const today = startOfDay(new Date())
   const elapsed = Math.max(0, Math.round((Math.min(to.getTime(), addDays(today, 1).getTime()) - from.getTime()) / 86400000))
-  const doneDays = {}, valsBy = {}
+  const doneDays = {}, offDays = {}, valsBy = {}
+  const tkR = dayKey(today)
   for (const v of vals || []) {
     const it = byItem[v.item_id]; if (!it) continue
     ;(valsBy[v.item_id] ||= []).push(v)
     if (isDoneVal(it, v.value)) (doneDays[v.item_id] ||= new Set()).add(v.day)
+    if (isOffVal(v.value) && v.day <= tkR) offDays[v.item_id] = (offDays[v.item_id] || 0) + 1
   }
+  const activeDays = h => Math.max(0, elapsed - (offDays[h.id] || 0))   // 非アクティブの日は分母から外す
   const habitHits = habits.reduce((s, h) => s + (doneDays[h.id]?.size || 0), 0)
-  const habitPossible = habits.length * elapsed
+  const habitPossible = habits.reduce((s, h) => s + activeDays(h), 0)
   const others = dItems.filter(i => !i.is_habit && !i.hidden && valsBy[i.id]?.length)
   const avgOf = (it, list) => {
     if (it.kind === 'time') { const m = list.map(v => hmToMin(v.value)).filter(x => x != null); return m.length ? `平均 ${minToHm(m.reduce((a, b) => a + b, 0) / m.length)}` : '' }
@@ -1955,11 +1969,12 @@ function ReportView({ L, B, openLog }) {
         const n = doneDays[h.id]?.size || 0
         if (mode === 'day') {
           const v = (valsBy[h.id] || []).find(x => x.day === dayK)
-          return html`<div class="rs-row" key=${h.id}><span>${h.icon}</span><span class="nm">${h.name}</span><span class=${n ? 'ok' : 'muted'}>${n ? (h.kind === 'check' ? '✓ できた' : '✓ ' + v.value) : '—'}</span></div>`
+          return html`<div class="rs-row" key=${h.id}><span>${h.icon}</span><span class="nm">${h.name}</span><span class=${n ? 'ok' : 'muted'}>${n ? (h.kind === 'check' ? '✓ できた' : '✓ ' + showVal(h, v.value)) : v ? showVal(h, v.value) : '—'}</span></div>`
         }
-        const goal = h.target ? Math.round(h.target * elapsed / 7) : 0
+        const ad = activeDays(h), goal = h.target ? Math.round(h.target * ad / 7) : 0
+        const sum = h.kind === 'number' ? (valsBy[h.id] || []).reduce((s, x) => s + (parseFloat(x.value) || 0), 0) : 0
         return html`<div class="lg" key=${h.id} style="--c:var(--done)"><span>${h.icon}</span><span class="nm">${h.name}</span>
-          <span class="v"><b>${n}</b> / ${elapsed}日${goal ? `（目標 ${goal}）` : ''}</span><span class="bar"><i style=${`width:${elapsed ? (n / elapsed) * 100 : 0}%`}></i></span></div>`
+          <span class="v"><b>${n}</b> / ${ad}日${sum ? `・合計 ${Math.round(sum * 10) / 10}${h.unit || ''}` : ''}${goal ? `（目標 ${goal}）` : ''}</span><span class="bar"><i style=${`width:${ad ? (n / ad) * 100 : 0}%`}></i></span></div>`
       })}
     </section>
 
@@ -1967,7 +1982,7 @@ function ReportView({ L, B, openLog }) {
       <section class="rep-card rsec">
         <h4>デイリーの記録</h4>
         ${others.map(it => html`<div class="rs-row" key=${it.id}><span>${it.icon}</span><span class="nm">${it.name}</span>
-          <span>${mode === 'day' ? (it.kind === 'check' ? '✓' : valsBy[it.id][0].value + (it.kind === 'number' && it.unit ? ' ' + it.unit : '')) : avgOf(it, valsBy[it.id])}</span></div>`)}
+          <span>${mode === 'day' ? showVal(it, valsBy[it.id][0].value) : avgOf(it, valsBy[it.id])}</span></div>`)}
       </section>`}
 
     <section class="rep-card rsec">
@@ -2104,13 +2119,13 @@ function useRowSort(rowSel, onReorder) {
 }
 
 function DailyRow({ it, value, isToday, onSave, onHist, sort, last }) {
-  const [draft, setDraft] = useState(value)
+  const [draft, setDraft] = useState(value === '-' ? '' : value)
   const pd = sort.pd
   const dragCls = sort.cls(it.id, last)
   const dp = sort.props(it.id, `${it.icon} ${it.name}`)
   const focused = useRef(false)
-  useEffect(() => { if (!focused.current) setDraft(value) }, [value])
-  const commit = v => { focused.current = false; const t = String(v).trim(); if (t !== value) onSave(t) }
+  useEffect(() => { if (!focused.current) setDraft(value === '-' ? '' : value) }, [value])
+  const commit = v => { focused.current = false; const t = String(v).trim(); if (t !== (value === '-' ? '' : value)) onSave(t) }
   const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
   const suffix = it.unit && it.kind === 'number' ? `（${it.unit}）` : ''
   const taRef = useRef()
@@ -2119,7 +2134,7 @@ function DailyRow({ it, value, isToday, onSave, onHist, sort, last }) {
     <li class=${'row drow chk' + (value === '1' ? ' has done' : '') + dragCls} ...${dp}>
       <span class="dic">${it.icon}</span>
       <${Check} done=${value === '1'} onToggle=${() => onSave(value === '1' ? '' : '1')} />
-      <span class="text" onClick=${() => { if (!pd.consumeClick()) onSave(value === '1' ? '' : '1') }}>${it.name}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}</span>
+      <span class="text" onClick=${() => { if (!pd.consumeClick()) onSave(value === '1' ? '' : '1') }}>${it.name}${it.is_habit ? html` <span class="htag" title="習慣">🔁</span>` : ''}${value === '0' ? html` <span class="vtag miss">✗ 未達成</span>` : value === '-' ? html` <span class="vtag">休み</span>` : ''}</span>
       <button class="ricon" tabindex="-1" title="過去の記録一覧" aria-label=${it.name + 'の履歴'} onClick=${() => onHist('list')}>☰</button>
     </li>`
   const field = it.kind === 'check'
@@ -2131,7 +2146,7 @@ function DailyRow({ it, value, isToday, onSave, onHist, sort, last }) {
         onKeyDown=${e => { if (isEnter(e)) e.target.blur() }} /><span class="tshow" aria-hidden="true">${draft ? draft.replace(/^(\d):/, '0$1:').slice(0, 5) : '--:--'}</span></span>`
     : html`<input class=${'dval k-' + it.kind} type=${it.kind === 'time' ? 'time' : it.kind === 'number' ? 'number' : 'text'}
         inputmode=${it.kind === 'number' ? 'decimal' : undefined} step=${it.kind === 'number' ? 'any' : undefined}
-        value=${draft} placeholder=${it.kind === 'time' ? '--:--' : it.kind === 'number' ? '–' : 'タップして入力'} aria-label=${it.name}
+        value=${draft} placeholder=${it.kind === 'time' ? '--:--' : it.kind === 'number' ? (value === '-' ? '休み' : '–') : 'タップして入力'} aria-label=${it.name}
         onFocus=${() => { focused.current = true }} onInput=${e => setDraft(e.target.value)} onBlur=${e => commit(e.target.value)}
         onKeyDown=${e => { if (isEnter(e)) e.target.blur() }} />`
   return html`
@@ -2224,7 +2239,7 @@ function HistoryModal({ L, item, mode: initMode, onClose }) {
       .then(d => alive && setRows(d)).catch(() => alive && setRows([]))
     return () => { alive = false }
   }, [item.id, L.version])
-  const show = v => (item.kind === 'check' || item.kind === 'habit' ? '✓' : item.kind === 'number' && item.unit ? `${v} ${item.unit}` : v)
+  const show = v => showVal(item, v)
   return html`<${Modal} title=${`${item.icon} ${item.name}`} onClose=${onClose}>
     ${chartable && html`<div class="toolbar" style="margin-top:0">
       <div class="seg"><button class=${mode === 'chart' ? 'on' : ''} onClick=${() => setMode('chart')}>📈 グラフ</button><button class=${mode === 'list' ? 'on' : ''} onClick=${() => setMode('list')}>☰ 一覧</button></div>
@@ -2237,12 +2252,12 @@ function HistoryModal({ L, item, mode: initMode, onClose }) {
   <//>`
 }
 
-function DailyItemModal({ L, item, onClose }) {
+function DailyItemModal({ L, item, habit, onClose }) {
   const [name, setName] = useState(item?.name || '')
   const [icon, setIcon] = useState(item?.icon || '⏰')
   const [kind, setKind] = useState(item?.kind === 'habit' ? 'check' : item?.kind || 'time')
   const [unit, setUnit] = useState(item?.unit || '')
-  const [isHabit, setIsHabit] = useState(!!item?.is_habit)
+  const [isHabit, setIsHabit] = useState(item ? !!item.is_habit : !!habit)
   const [target, setTarget] = useState(String(item?.target || 0))
   const save = () => {
     const n = name.trim(); if (!n) return
@@ -2260,7 +2275,7 @@ function DailyItemModal({ L, item, onClose }) {
     <div class="field">
       <label class="switch"><input type="checkbox" checked=${isHabit} onChange=${e => setIsHabit(e.target.checked)} /><span>🔁 習慣にする（習慣ページで週・月・年の達成状況を見る）</span></label>
       ${isHabit && html`<select style="margin-top:8px" value=${target} onChange=${e => setTarget(e.target.value)}>${[0, 1, 2, 3, 4, 5, 6, 7].map(n => html`<option value=${n}>${n ? `目標：週 ${n} 回` : '目標なし'}</option>`)}</select>
-        <div class="hint">${kind === 'check' ? 'チェックした日が「できた日」になります。' : '何か記録した日が「できた日」になります（例：起床を記録した日）。'}</div>`}
+        <div class="hint">${kind === 'check' ? 'チェックした日が「できた日」になります。習慣ページではタップごとに 達成→未達成→休み と切り替わります。' : kind === 'number' ? '回数（1以上）を記録した日が「できた日」になります。習慣ページのマスをタップすると回数を入力でき、「休み」にもできます。' : '何か記録した日が「できた日」になります（例：起床を記録した日）。'}</div>`}
     </div>
     <div class="field"><label>アイコン</label><${IconPicker} value=${icon} onChange=${setIcon} /></div>
     <div class="acts"><span class="grow"></span><button class="btn ghost" onClick=${onClose}>キャンセル</button><button class="btn" disabled=${!name.trim()} onClick=${save}>保存</button></div>
@@ -2272,7 +2287,7 @@ function DailySettings({ L, onClose, onlyHabits }) {
   const items = onlyHabits ? L.items.filter(x => x.is_habit) : L.items
   const [edit, setEdit] = useState(null)
   const sort = useRowSort('.slist > li', act.reorderDaily)
-  if (edit) return html`<${DailyItemModal} L=${L} item=${edit.id ? edit : null} onClose=${() => setEdit(null)} />`
+  if (edit) return html`<${DailyItemModal} L=${L} item=${edit.id ? edit : null} habit=${onlyHabits} onClose=${() => setEdit(null)} />`
   return html`<${Modal} title=${onlyHabits ? '習慣の設定' : 'デイリーの項目'} onClose=${onClose}>
     <p class="muted" style="font-size:13px;margin-bottom:10px">${onlyHabits ? '習慣はデイリーの項目のうち「習慣にする」をオンにしたものです。' : '目のボタンで表示・非表示。🔁 が付いた項目は習慣ページにも出ます。'}</p>
     <ul class=${'list slist' + (sort.pd.drag ? ' sorting' : '')}>${items.map((it, i) => html`
@@ -2292,6 +2307,25 @@ function DailySettings({ L, onClose, onlyHabits }) {
     <${DragGhost} pd=${sort.pd} cls="dghost" />
     ${onlyHabits && !items.length && html`<div class="empty list">まだありません。下のボタンから追加するか、デイリーの項目で「習慣にする」をオンにしてください。</div>`}
     <div class="acts"><button class="btn sub" onClick=${() => setEdit({})}>＋ 項目を追加</button><span class="grow"></span><button class="btn" onClick=${onClose}>完了</button></div>
+  <//>`
+}
+
+// 数値の習慣（腹筋の回数など）をその日に記録する。0=未達成、休み=非アクティブ
+function CountModal({ it, day, value, onSave, onClose }) {
+  const [n, setN] = useState(value === '-' ? '' : value)
+  const done = v => { onSave(v); onClose() }
+  const save = () => { const t = String(n).trim(); done(t === '' || isNaN(parseFloat(t)) ? '' : String(parseFloat(t))) }
+  return html`<${Modal} title=${`${it.icon} ${it.name}　${dayLabel(day)}`} onClose=${onClose}>
+    <div class="field"><label>${it.unit ? `回数・量（${it.unit}）` : '回数・量'}</label>
+      <div class="cnt-in"><input type="number" inputmode="decimal" step="any" min="0" value=${n} placeholder="例: 30" aria-label="回数"
+        onInput=${e => setN(e.target.value)} onKeyDown=${e => { if (isEnter(e)) { e.preventDefault(); save() } }} />${it.unit && html`<span>${it.unit}</span>`}</div>
+      <div class="hint">${value === '-' ? 'いまは「休み（非アクティブ）」です。' : ''}0 を入れると未達成になります。</div></div>
+    <div class="acts">
+      <button class="btn sub" onClick=${() => done('-')}>– 休み</button>
+      ${value !== '' && html`<button class="btn ghost" onClick=${() => done('')}>クリア</button>`}
+      <span class="grow"></span>
+      <button class="btn" onClick=${save}>保存</button>
+    </div>
   <//>`
 }
 
@@ -2357,14 +2391,27 @@ function HabitView({ L }) {
     return () => { alive = false }
   }, [fromK, toK, version])
   const isDone = (it, d) => isDoneVal(it, vals[it.id + '|' + d])
-  const toggle = (it, d) => {
+  const isOff = (it, d) => isOffVal(vals[it.id + '|' + d])
+  const setV = (it, d, v) => {
+    const k = it.id + '|' + d
+    setVals(p => { const q = { ...p }; if (v === '') delete q[k]; else q[k] = v; return q })
+    act.setValue(it.id, d, v)
+  }
+  // チェック: タップごとに 達成(1) → 未達成(0) → 非アクティブ(-) → 達成…  数値: 回数を入力
+  const [countFor, setCountFor] = useState(null)
+  const tap = (it, d) => {
+    if (it.kind === 'number') return setCountFor({ it, d })
     if (it.kind !== 'check') return
-    const k = it.id + '|' + d, was = vals[k] === '1'
-    setVals(p => { const q = { ...p }; if (was) delete q[k]; else q[k] = '1'; return q })
-    act.setValue(it.id, d, was ? '' : '1')
+    const v = vals[it.id + '|' + d]
+    setV(it, d, v === '1' ? '0' : v === '0' ? '-' : '1')
   }
   const selected = habits.find(h => h.id === sel)
-  const ratio = key => (selected ? (isDone(selected, key) ? 1 : 0) : habits.length ? habits.filter(h => isDone(h, key)).length / habits.length : 0)
+  // 非アクティブの習慣はその日の分母から外す（全部休みの日は色なし）
+  const ratio = key => {
+    const list = (selected ? [selected] : habits).filter(h => !isOff(h, key))
+    return list.length ? list.filter(h => isDone(h, key)).length / list.length : -1
+  }
+  const offIn = h => Object.keys(vals).filter(k => k.startsWith(h.id + '|') && k.slice(h.id.length + 1) <= tk && isOffVal(vals[k])).length
   const shift = dir => {
     if (mode === 'week') setWeekStart(addDays(weekStart, 7 * dir))
     else if (mode === 'month') setAnchor(new Date(y, m + dir, 1))
@@ -2388,7 +2435,7 @@ function HabitView({ L }) {
         <button class="chip" disabled=${isNow} onClick=${goNow}>今</button>
       </div>
     <//>
-    <div class="ghead" style="margin-top:0"><span>${mode === 'week' ? 'やった日をタップ' : '色が濃いほど多くできた日'}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button></div>
+    <div class="ghead" style="margin-top:0"><span>${mode === 'week' ? 'タップごとに ✓達成 → ✗未達成 → –休み' : '色が濃いほど多くできた日'}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button></div>
     ${!habits.length ? html`<div class="empty list">習慣がありません。「⚙ 習慣」から追加するか、デイリーの項目で「習慣にする」をオンにしてください。</div>`
     : mode === 'week' ? html`
       <div class=${'hgrid' + (sort.pd.drag ? ' sorting' : '')}>
@@ -2402,11 +2449,13 @@ function HabitView({ L }) {
                 <span class="hn"><b>${it.name}</b><small class=${ok ? 'ok' : ''}>${n}${it.target ? ` / ${it.target}` : ''} 回${ok ? ' 達成 🎉' : ''}</small></span>
               </button>
               ${days.map(d => {
-                const on = isDone(it, d), ro = it.kind !== 'check'
-                return html`<button class=${'hcell' + (on ? ' on' : '') + (d === tk ? ' today' : '') + (ro ? ' ro' : '')} disabled=${d > tk}
-                  aria-pressed=${on ? 'true' : 'false'} aria-label=${`${it.name} ${dayLabel(d)}`}
-                  title=${ro ? (on ? `${vals[it.id + '|' + d]}（デイリーで記録）` : 'デイリーで記録すると付きます') : ''}
-                  onClick=${() => toggle(it, d)}>${on ? '✓' : ''}</button>`
+                const v = vals[it.id + '|' + d], on = isDone(it, d), off = isOffVal(v), miss = !on && !off && v === '0'
+                const ro = it.kind !== 'check' && it.kind !== 'number', num = it.kind === 'number' && on
+                const state = on ? '達成' : off ? '休み' : miss ? '未達成' : '未記録'
+                return html`<button class=${'hcell' + (on ? ' on' : '') + (off ? ' off' : '') + (miss ? ' miss' : '') + (num ? ' num' : '') + (d === tk ? ' today' : '') + (ro ? ' ro' : '')} disabled=${d > tk}
+                  aria-label=${`${it.name} ${dayLabel(d)}：${state}${num ? ' ' + v + (it.unit || '') : ''}`}
+                  title=${ro ? (on ? `${v}（デイリーで記録）` : 'デイリーで記録すると付きます') : it.kind === 'number' ? `${state}${num ? ` ${v}${it.unit || ''}` : ''}（タップで回数を入力）` : `${state}（タップで切り替え）`}
+                  onClick=${() => tap(it, d)}>${num ? v : on ? '✓' : off ? '–' : miss ? '✗' : ''}</button>`
               })}
             </div>`
         })}
@@ -2423,15 +2472,17 @@ function HabitView({ L }) {
     ${habits.length > 0 && mode !== 'week' && html`
       <div class="ghead"><span>${label}の達成（${elapsed}日間）</span></div>
       <div class="rep-card">${habits.map(h => {
-        const n = countIn(h), goal = h.target ? Math.round(h.target * elapsed / 7) : 0
+        const n = countIn(h), ad = Math.max(0, elapsed - offIn(h)), goal = h.target ? Math.round(h.target * ad / 7) : 0
         return html`<div class="lg" key=${h.id} style="--c:var(--done)" onClick=${() => setSel(sel === h.id ? '' : h.id)}>
           <span>${h.icon}</span><span class="nm">${h.name}</span>
-          <span class="v"><b>${n}</b> 日${elapsed ? `・${Math.round((n / elapsed) * 100)}%` : ''}${goal ? `（目標 ${goal}）` : ''}</span>
-          <span class="bar"><i style=${`width:${elapsed ? (n / elapsed) * 100 : 0}%`}></i></span></div>`
+          <span class="v"><b>${n}</b> 日${ad ? `・${Math.round((n / ad) * 100)}%` : ''}${ad < elapsed ? `（休み ${elapsed - ad}日）` : ''}${goal ? `（目標 ${goal}）` : ''}</span>
+          <span class="bar"><i style=${`width:${ad ? (n / ad) * 100 : 0}%`}></i></span></div>`
       })}</div>`}
     <${DragGhost} pd=${sort.pd} cls="dghost" />
     ${settings && html`<${DailySettings} L=${L} onlyHabits onClose=${() => setSettings(false)} />`}
-    ${hist && html`<${HistoryModal} L=${L} item=${hist} mode="list" onClose=${() => setHist(null)} />`}`
+    ${hist && html`<${HistoryModal} L=${L} item=${hist} mode="list" onClose=${() => setHist(null)} />`}
+    ${countFor && html`<${CountModal} it=${countFor.it} day=${countFor.d} value=${vals[countFor.it.id + '|' + countFor.d] ?? ''}
+      onSave=${v => setV(countFor.it, countFor.d, v)} onClose=${() => setCountFor(null)} />`}`
 }
 
 function ActionsModal({ L, onClose }) {
