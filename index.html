@@ -340,17 +340,20 @@ button.cswatch { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--border); }
 .rsec { margin-bottom: 12px; }
 .rsec h4 { font-size: 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; }
 .rsec h4 small { font-size: 12px; color: var(--muted); font-weight: 600; }
-.rs-cols { display: grid; gap: 12px; }
-@media (min-width: 640px) { .rs-cols { grid-template-columns: 1fr 1fr; } }
+.rs-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 640px) { .rs-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .rs-h { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
 .rs-list { list-style: none; }
 .rs-list li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid var(--border); font-size: 14px; }
 .rs-list li:first-child { border-top: 0; }
-.rs-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-t { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .rs-empty { font-size: 13px; padding: 4px 0; }
 .rs-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 14px; }
 .rs-row:first-of-type { border-top: 0; }
-.rs-row .nm { flex: 1; font-weight: 600; }
+.rs-row .nm { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rs-row > span:last-child { min-width: 0; text-align: right; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rs-list li .stamp { flex: none; }
+.rsec, .rep-card { min-width: 0; overflow-wrap: anywhere; }
 .rs-row .ok { color: var(--done); font-weight: 700; }
 
 /* 習慣：ヒートマップ */
@@ -437,9 +440,9 @@ button.lrow:hover { background: var(--hover); }
 .donut { width: 100%; max-width: 210px; margin: 0 auto; display: block; }
 .donut .d-l { font-size: 12px; fill: var(--muted); }
 .donut .d-v { font-size: 22px; font-weight: 800; fill: var(--text); }
-.lg { display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 8px; align-items: center; padding: 5px 0; }
-.lg .nm { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lg .v { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.lg { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, max-content); gap: 2px 8px; align-items: center; padding: 5px 0; }
+.lg .nm { font-weight: 600; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.lg .v { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: normal; text-align: right; overflow-wrap: anywhere; }
 .lg .v b { color: var(--text); font-size: 14px; }
 .lg .bar { grid-column: 2 / 4; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
 .lg .bar i { display: block; height: 100%; background: var(--c); border-radius: 3px; }
@@ -461,7 +464,10 @@ button.lrow:hover { background: var(--hover); }
 .slist .grip { color: var(--muted); font-size: 12px; letter-spacing: -3px; cursor: grab; padding: 0 4px 0 0; flex: none; }
 .ricon.rst { color: var(--muted); font-size: 16px; }
 .ricon:disabled { opacity: .3; cursor: default; }
-.dadd { margin-top: 6px; border: 1.5px dashed var(--border); text-align: center; background: transparent; }
+.dadd { border: 1.5px dashed var(--border); text-align: center; background: transparent; flex: 1; width: auto; }
+.dfoot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.dfoot.end { justify-content: flex-end; }
+.dfoot .chip { flex: none; padding: 6px 12px; }
 .dic { width: 30px; text-align: center; font-size: 22px; flex: none; }
 .dmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dmain small { font-size: 12px; color: var(--muted); }
@@ -602,7 +608,9 @@ button.lrow:hover { background: var(--hover); }
   .rec-dock .stop { width: 44px; height: 44px; }
   .rec-dock .now-idle { font-size: 13px; padding: 6px 0; }
   .rec-dock .now-idle small { display: none; }
-  .rec-dock .agrid { grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; max-height: 198px; overflow-y: auto; }
+  /* 2段分の高さ。3段目以降はスクロール */
+  .rec-dock .agrid { grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; max-height: var(--agrid-h, 132px); overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y proximity; }
+  .rec-dock .agrid > * { scroll-snap-align: start; }
   .rec-dock .abtn { padding: 8px 2px 6px; gap: 3px; }
   .rec-dock .abtn .aic { font-size: 22px; }
   .rec-dock .abtn .an { font-size: 11.5px; }
@@ -865,6 +873,21 @@ function DotMenu({ render, label = 'メニュー' }) {
     const right = Math.max(8, innerWidth - r.right)
     setPos(r.bottom < innerHeight * 0.6 ? { top: r.bottom + 4, right } : { bottom: innerHeight - r.top + 4, right })
   }
+  // 開いたあとで実際の大きさを測り、画面（スマホの下部ナビ・キーボードを含む）からはみ出さないように寄せる
+  useEffect(() => {
+    const m = menu.current; if (!pos || !m) return
+    const vv = window.visualViewport, vw = vv ? vv.width : innerWidth, vh = vv ? vv.height : innerHeight
+    const nav = document.querySelector('.bnav'), inSheet = m.closest('.sheet')
+    const navTop = nav && !inSheet && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : vh
+    const bottomLimit = Math.min(vh, navTop) - 8, topLimit = 8
+    m.style.maxHeight = (bottomLimit - topLimit) + 'px'
+    let r = m.getBoundingClientRect()
+    if (r.bottom > bottomLimit) { m.style.bottom = 'auto'; m.style.top = Math.max(topLimit, bottomLimit - r.height) + 'px' }
+    else if (r.top < topLimit) { m.style.bottom = 'auto'; m.style.top = topLimit + 'px' }
+    r = m.getBoundingClientRect()
+    if (r.left < 8) { m.style.right = 'auto'; m.style.left = '8px' }
+    if (r.right > vw - 8) { m.style.left = 'auto'; m.style.right = '8px' }
+  }, [pos])
   return html`
     <button ref=${btn} class="dots" aria-label=${label} aria-haspopup="menu" aria-expanded=${pos ? 'true' : 'false'} onClick=${toggle} draggable=${false}>•••</button>
     ${pos && html`<div ref=${menu} class="menu" role="menu" style=${pos} onClick=${e => e.stopPropagation()}>${render(close)}</div>`}`
@@ -2194,7 +2217,7 @@ function DailyView({ L }) {
     ${vis.length ? html`<ul class=${'list dlist' + (pd.drag ? ' sorting' : '')}>${vis.map((it, i) => html`<${DailyRow} key=${it.id + day} it=${it} value=${vals[it.id] ?? ''} isToday=${day === tk}
         onSave=${v => save(it, v)} onHist=${m => setHist({ item: it, mode: m })} sort=${sort} last=${i === vis.length - 1} />`)}</ul>`
       : html`<div class="empty list">表示する項目がありません。下の「＋ 項目を追加」から追加できます。</div>`}
-    <button class="add-btn dadd" tabindex="-1" onClick=${() => setAdding(true)}>＋ 項目を追加</button>
+    <div class="dfoot"><button class="add-btn dadd" tabindex="-1" onClick=${() => setAdding(true)}>＋ 項目を追加</button><button class="chip" onClick=${() => setSettings(true)}>⚙ 項目</button></div>
     ${adding && html`<${DailyItemModal} L=${L} item=${null} onClose=${() => setAdding(false)} />`}
     <${DragGhost} pd=${pd} cls="dghost" />
     ${hist && html`<${HistoryModal} L=${L} item=${hist.item} mode=${hist.mode} onClose=${() => setHist(null)} />`}
@@ -2275,7 +2298,7 @@ function DailyItemModal({ L, item, habit, onClose }) {
     <div class="field">
       <label class="switch"><input type="checkbox" checked=${isHabit} onChange=${e => setIsHabit(e.target.checked)} /><span>🔁 習慣にする（習慣ページで週・月・年の達成状況を見る）</span></label>
       ${isHabit && html`<select style="margin-top:8px" value=${target} onChange=${e => setTarget(e.target.value)}>${[0, 1, 2, 3, 4, 5, 6, 7].map(n => html`<option value=${n}>${n ? `目標：週 ${n} 回` : '目標なし'}</option>`)}</select>
-        <div class="hint">${kind === 'check' ? 'チェックした日が「できた日」になります。習慣ページではタップごとに 達成→未達成→休み と切り替わります。' : kind === 'number' ? '回数（1以上）を記録した日が「できた日」になります。習慣ページのマスをタップすると回数を入力でき、「休み」にもできます。' : '何か記録した日が「できた日」になります（例：起床を記録した日）。'}</div>`}
+        <div class="hint">${kind === 'check' ? 'チェックした日が「できた日」になります。習慣ページではタップごとに 達成→未達成→休み→未入力 と切り替わります。' : kind === 'number' ? '回数（1以上）を記録した日が「できた日」になります。習慣ページのマスをタップすると回数を入力でき、「休み」にもできます。' : '何か記録した日が「できた日」になります（例：起床を記録した日）。'}</div>`}
     </div>
     <div class="field"><label>アイコン</label><${IconPicker} value=${icon} onChange=${setIcon} /></div>
     <div class="acts"><span class="grow"></span><button class="btn ghost" onClick=${onClose}>キャンセル</button><button class="btn" disabled=${!name.trim()} onClick=${save}>保存</button></div>
@@ -2397,13 +2420,13 @@ function HabitView({ L }) {
     setVals(p => { const q = { ...p }; if (v === '') delete q[k]; else q[k] = v; return q })
     act.setValue(it.id, d, v)
   }
-  // チェック: タップごとに 達成(1) → 未達成(0) → 非アクティブ(-) → 達成…  数値: 回数を入力
+  // チェック: タップごとに 達成(1) → 未達成(0) → 非アクティブ(-) → 未入力 → …  数値: 回数を入力
   const [countFor, setCountFor] = useState(null)
   const tap = (it, d) => {
     if (it.kind === 'number') return setCountFor({ it, d })
     if (it.kind !== 'check') return
     const v = vals[it.id + '|' + d]
-    setV(it, d, v === '1' ? '0' : v === '0' ? '-' : '1')
+    setV(it, d, v === '1' ? '0' : v === '0' ? '-' : v === '-' ? '' : '1')
   }
   const selected = habits.find(h => h.id === sel)
   // 非アクティブの習慣はその日の分母から外す（全部休みの日は色なし）
@@ -2435,7 +2458,7 @@ function HabitView({ L }) {
         <button class="chip" disabled=${isNow} onClick=${goNow}>今</button>
       </div>
     <//>
-    <div class="ghead" style="margin-top:0"><span>${mode === 'week' ? 'タップごとに ✓達成 → ✗未達成 → –休み' : '色が濃いほど多くできた日'}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button></div>
+    <div class="ghead" style="margin-top:0"><span>${mode === 'week' ? 'タップごとに ✓達成 → ✗未達成 → –休み → 未入力' : '色が濃いほど多くできた日'}</span><button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button></div>
     ${!habits.length ? html`<div class="empty list">習慣がありません。「⚙ 習慣」から追加するか、デイリーの項目で「習慣にする」をオンにしてください。</div>`
     : mode === 'week' ? html`
       <div class=${'hgrid' + (sort.pd.drag ? ' sorting' : '')}>
@@ -2478,6 +2501,7 @@ function HabitView({ L }) {
           <span class="v"><b>${n}</b> 日${ad ? `・${Math.round((n / ad) * 100)}%` : ''}${ad < elapsed ? `（休み ${elapsed - ad}日）` : ''}${goal ? `（目標 ${goal}）` : ''}</span>
           <span class="bar"><i style=${`width:${ad ? (n / ad) * 100 : 0}%`}></i></span></div>`
       })}</div>`}
+    ${habits.length > 0 && html`<div class="dfoot end"><button class="chip" onClick=${() => setSettings(true)}>⚙ 習慣</button></div>`}
     <${DragGhost} pd=${sort.pd} cls="dghost" />
     ${settings && html`<${DailySettings} L=${L} onlyHabits onClose=${() => setSettings(false)} />`}
     ${hist && html`<${HistoryModal} L=${L} item=${hist} mode="list" onClose=${() => setHist(null)} />`}
