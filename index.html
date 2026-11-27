@@ -440,6 +440,8 @@ button.lrow:hover { background: var(--hover); }
 .donut { width: 100%; max-width: 210px; margin: 0 auto; display: block; }
 .donut .d-l { font-size: 12px; fill: var(--muted); }
 .donut .d-v { font-size: 22px; font-weight: 800; fill: var(--text); }
+.donut .d-p { font-size: 12px; font-weight: 800; fill: #fff; stroke: rgba(0,0,0,.45); stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; }
+.lg .sw { width: 24px; height: 24px; border-radius: 6px; background: var(--c); display: grid; place-items: center; font-size: 13px; line-height: 1; }
 .lg { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, max-content); gap: 2px 8px; align-items: center; padding: 5px 0; }
 .lg .nm { font-weight: 600; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .lg .v { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: normal; text-align: right; overflow-wrap: anywhere; }
@@ -1864,6 +1866,11 @@ function Donut({ parts, total, center }) {
         acc += len
         return el
       })}
+      ${(() => { let a = 0; return parts.map(p => {
+        const share = total ? p.ms / total : 0, mid = (a + share / 2) * 2 * Math.PI - Math.PI / 2
+        a += share
+        return share >= 0.06 && html`<text x=${100 + R * Math.cos(mid)} y=${100 + R * Math.sin(mid) + 4} text-anchor="middle" class="d-p">${Math.round(share * 100)}%</text>`
+      }) })()}
       <text x="100" y="94" text-anchor="middle" class="d-l">${center[0]}</text>
       <text x="100" y="120" text-anchor="middle" class="d-v">${center[1]}</text>
     </svg>`
@@ -1899,7 +1906,7 @@ function ReportView({ L, B, openLog }) {
   }, [mode, anchor])
   useEffect(() => {
     let alive = true
-    setLogs(null)
+    setLogs(null); setVals(null)   // 前の期間のデータで描画しない（月→日で落ちる原因）
     fetchLogs(from, to).then(d => alive && setLogs(d)).catch(() => alive && setLogs([]))
     fetchAll(() => sb.from('tb_daily_values').select('item_id,day,value').gte('day', dayKey(from)).lte('day', dayKey(addDays(to, -1))).order('day', { ascending: false }))
       .then(d => alive && setVals(d)).catch(() => alive && setVals([]))
@@ -1948,6 +1955,7 @@ function ReportView({ L, B, openLog }) {
   const untracked = mode === 'day' ? Math.max(0, span - tracked) : 0
   const chartParts = untracked > 60000 ? [...parts, { id: '_none', ms: untracked, color: UNTRACKED }] : parts
   const chartTotal = tracked + (untracked > 60000 ? untracked : 0)
+  const pct = ms => (chartTotal ? Math.round((ms / chartTotal) * 100) : 0)   // グラフ上の％と凡例の％をそろえる
 
   const exportCsv = () => {
     const rows = [['日付', 'アクション', '開始', '終了', '時間(分)']]
@@ -1991,8 +1999,8 @@ function ReportView({ L, B, openLog }) {
       ${vals === null ? html`<div class="muted rs-empty">読み込み中…</div>` : !habits.length ? html`<div class="muted rs-empty">習慣はまだありません（デイリーの項目で「習慣にする」をオン）</div>` : habits.map(h => {
         const n = doneDays[h.id]?.size || 0
         if (mode === 'day') {
-          const v = (valsBy[h.id] || []).find(x => x.day === dayK)
-          return html`<div class="rs-row" key=${h.id}><span>${h.icon}</span><span class="nm">${h.name}</span><span class=${n ? 'ok' : 'muted'}>${n ? (h.kind === 'check' ? '✓ できた' : '✓ ' + showVal(h, v.value)) : v ? showVal(h, v.value) : '—'}</span></div>`
+          const v = (valsBy[h.id] || []).find(x => x.day === dayK), ok = v && isDoneVal(h, v.value)
+          return html`<div class="rs-row" key=${h.id}><span>${h.icon}</span><span class="nm">${h.name}</span><span class=${ok ? 'ok' : 'muted'}>${ok ? (h.kind === 'check' ? '✓ できた' : '✓ ' + showVal(h, v.value)) : v ? showVal(h, v.value) : '—'}</span></div>`
         }
         const ad = activeDays(h), goal = h.target ? Math.round(h.target * ad / 7) : 0
         const sum = h.kind === 'number' ? (valsBy[h.id] || []).reduce((s, x) => s + (parseFloat(x.value) || 0), 0) : 0
@@ -2005,7 +2013,7 @@ function ReportView({ L, B, openLog }) {
       <section class="rep-card rsec">
         <h4>デイリーの記録</h4>
         ${others.map(it => html`<div class="rs-row" key=${it.id}><span>${it.icon}</span><span class="nm">${it.name}</span>
-          <span>${mode === 'day' ? showVal(it, valsBy[it.id][0].value) : avgOf(it, valsBy[it.id])}</span></div>`)}
+          <span>${mode === 'day' ? showVal(it, (valsBy[it.id].find(x => x.day === dayK) || valsBy[it.id][0]).value) : avgOf(it, valsBy[it.id])}</span></div>`)}
       </section>`}
 
     <section class="rep-card rsec">
@@ -2016,12 +2024,12 @@ function ReportView({ L, B, openLog }) {
           <div>
             ${parts.map(p => html`
               <div class="lg" key=${p.id} style=${`--c:${p.color}`}>
-                <span>${p.a?.icon || '？'}</span>
+                <span class="sw">${p.a?.icon || '？'}</span>
                 <span class="nm">${p.a?.name || '（削除済み）'}</span>
-                <span class="v"><b>${hm(p.ms)}</b>　${Math.round(p.ms / 60000)}分・${Math.round((p.ms / tracked) * 100)}%</span>
+                <span class="v"><b>${pct(p.ms)}%</b>　${hm(p.ms)}</span>
                 <span class="bar"><i style=${`width:${(p.ms / parts[0].ms) * 100}%`}></i></span>
               </div>`)}
-            ${untracked > 60000 && html`<div class="lg" style=${`--c:${UNTRACKED}`}><span>·</span><span class="nm muted">未記録</span><span class="v">${hm(untracked)}</span></div>`}
+            ${untracked > 60000 && html`<div class="lg" style=${`--c:${UNTRACKED}`}><span class="sw"></span><span class="nm muted">未記録</span><span class="v"><b>${pct(untracked)}%</b>　${hm(untracked)}</span></div>`}
           </div>
         </div>`}
       <div class="rep-acts">
