@@ -59,6 +59,7 @@ input { font: inherit; color: inherit; font-size: 16px; } /* 16px未満だとiPh
 .badge { font-size: 11px; background: var(--accent); color: #fff; border-radius: 10px; padding: 0 6px; min-width: 18px; text-align: center; line-height: 17px; }
 .sync { width: 8px; height: 8px; border-radius: 50%; background: var(--done); flex: none; }
 .sync.off { background: var(--danger); }
+.offbar { position: sticky; top: calc(var(--top-h) + env(safe-area-inset-top)); z-index: 19; background: #fff4d6; color: #7a5200; border-bottom: 1px solid #f1d48a; font-size: 13px; font-weight: 600; text-align: center; padding: 6px 12px; }
 
 /* ---- common controls ---- */
 .check { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; }
@@ -652,8 +653,50 @@ button.lrow:hover { background: var(--hover); }
 import { html, render, useState, useEffect, useRef, useCallback, useMemo } from 'https://unpkg.com/htm@3.1.1/preact/standalone.module.js'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 
+/* ================= オフライン（閲覧のみ） =================
+   一度読み込んだデータを端末に保存し、電波がないときはそれを表示する。保存（書き込み）はオンラインのときだけ。 */
+const DATA_CACHE = 'tb-data-v1'
+let cacheUid = ''   // ログイン中のユーザー（別のユーザーのデータを混ぜない）
+const net = { offline: typeof navigator !== 'undefined' && navigator.onLine === false, subs: new Set(),
+  set(v) { if (this.offline !== v) { this.offline = v; this.subs.forEach(f => f(v)) } } }
+addEventListener('offline', () => net.set(true))
+function useOffline() {
+  const [v, setV] = useState(net.offline)
+  useEffect(() => { net.subs.add(setV); setV(net.offline); return () => net.subs.delete(setV) }, [])
+  return v
+}
+const strHash = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) }
+const isReadReq = (url, m) => url.includes('/rest/v1/') && (m === 'GET' || m === 'HEAD' || (m === 'POST' && url.includes('/rest/v1/rpc/')))
+const cacheKey = (url, m, body) => `https://tb-cache.local/${cacheUid}/${m}/${encodeURIComponent(url)}${typeof body === 'string' ? '/' + strHash(body) : ''}`
+async function netFetch(input, init = {}) {
+  const url = typeof input === 'string' ? input : input.url
+  const m = (init.method || (typeof input === 'string' ? 'GET' : input.method) || 'GET').toUpperCase()
+  const read = !!cacheUid && typeof caches !== 'undefined' && isReadReq(url, m)
+  try {
+    const res = await fetch(input, read && !init.signal && AbortSignal.timeout ? { ...init, signal: AbortSignal.timeout(10000) } : init)
+    net.set(false)
+    if (read && res.ok) {
+      const key = cacheKey(url, m, init.body), copy = res.clone()
+      copy.text().then(t => caches.open(DATA_CACHE).then(c => c.put(key, new Response(t, { status: res.status,
+        headers: { 'content-type': res.headers.get('content-type') || 'application/json', 'content-range': res.headers.get('content-range') || '' } })))).catch(() => {})
+    }
+    return res
+  } catch (e) {
+    if (e?.name === 'AbortError' && init.signal?.aborted) throw e   // 呼び出し側が中断した
+    net.set(true)
+    if (read) { const hit = await caches.open(DATA_CACHE).then(c => c.match(cacheKey(url, m, init.body))).catch(() => null); if (hit) return hit }
+    throw new Error(read ? 'オフラインで、この内容はまだ端末に保存されていません' : 'オフラインのため保存できません')
+  }
+}
+const clearDataCache = () => { if (typeof caches !== 'undefined') caches.delete(DATA_CACHE).catch(() => {}) }
+const failMsg = e => (net.offline ? 'オフラインのため保存できません。電波が戻ってからもう一度どうぞ' : '保存に失敗しました: ' + e.message)
+// 電波がなくてトークンを更新できないときも、端末に残っているログイン情報で閲覧はできるようにする
+const storedSession = () => {
+  try { const k = Object.keys(localStorage).find(k => /^sb-.+-auth-token$/.test(k)); const s = k && JSON.parse(localStorage.getItem(k)); return s?.user?.id ? s : null } catch { return null }
+}
+
 // LifeOS / 7つの習慣 と同じ Supabase プロジェクト・同じアカウントを使う（テーブルは tb_ プレフィックス）
-const sb = createClient('https://aowozgaddvxfrmxvhdms.supabase.co', 'sb_publishable_UoEj1KjRpaoCH1f__MplAw_Yd6NOY0L')
+const sb = createClient('https://aowozgaddvxfrmxvhdms.supabase.co', 'sb_publishable_UoEj1KjRpaoCH1f__MplAw_Yd6NOY0L', { global: { fetch: netFetch } })
 const DEFAULT_COLUMNS = ['未着手', '進行中', '完了']
 const DEFAULT_CATEGORIES = [['家族', '#3498db'], ['仕事', '#e84393'], ['勉強', '#f1c40f']]
 
@@ -703,7 +746,7 @@ function useBoard(userId, notify) {
       sb.from('tb_categories').select('*').order('position'),
     ])
     const err = ir.error || cr.error || kr.error
-    if (err) { setOnline(false); setLoading(false); notifyRef.current('読み込みに失敗しました: ' + err.message); return }
+    if (err) { setOnline(false); setLoading(false); notifyRef.current(net.offline ? 'オフラインです（この端末にはまだデータが保存されていません）' : '読み込みに失敗しました: ' + err.message); return }
     let cols = cr.data, cats = kr.data
     const seedKey = 'tb_seeded_' + userId
     if (cols.length === 0 && !localStorage.getItem(seedKey)) {
@@ -738,7 +781,7 @@ function useBoard(userId, notify) {
 
   const act = useMemo(() => {
     const now = () => new Date().toISOString()
-    const fail = error => { if (error) { notifyRef.current('保存に失敗しました: ' + error.message); setOnline(false); load() } return !!error }
+    const fail = error => { if (error) { notifyRef.current(failMsg(error)); setOnline(false); load() } return !!error }
     const nextPos = colId => { const ps = itemsRef.current.filter(i => i.column_id === colId).map(i => i.position); return ps.length ? Math.max(...ps) + 1 : 0 }
     const colName = id => colsRef.current.find(c => c.id === id)?.title ?? ''
 
@@ -1518,7 +1561,7 @@ function useLog(userId, notify) {
       sb.rpc('tb_action_counts'),
     ])
     const err = ar.error || rr.error || ir.error
-    if (err) { notifyRef.current('ログの読み込みに失敗しました: ' + err.message); setReady(true); return }
+    if (err) { if (!net.offline) notifyRef.current('ログの読み込みに失敗しました: ' + err.message); setReady(true); return }
     let acts = ar.data, its = ir.data
     const seed = async (table, key, rows, cur) => {
       if (cur.length || localStorage.getItem(key)) return cur
@@ -1550,12 +1593,13 @@ function useLog(userId, notify) {
     ch.subscribe()
     const onVis = () => document.visibilityState === 'visible' && load()
     document.addEventListener('visibilitychange', onVis)
-    return () => { clearTimeout(t); sb.removeChannel(ch); document.removeEventListener('visibilitychange', onVis) }
+    window.addEventListener('online', load)
+    return () => { clearTimeout(t); sb.removeChannel(ch); document.removeEventListener('visibilitychange', onVis); window.removeEventListener('online', load) }
   }, [load])
 
   const act = useMemo(() => {
     const now = () => new Date().toISOString()
-    const fail = e => { if (e) { notifyRef.current('保存に失敗しました: ' + e.message); load() } return !!e }
+    const fail = e => { if (e) { notifyRef.current(failMsg(e)); load() } return !!e }
     const bump = () => setVersion(v => v + 1)
     const inc = (id, d) => setCounts(c => ({ ...c, [id]: Math.max(0, (c[id] || 0) + d) }))
     const swap = async (table, list, setList, id, dir) => {
@@ -2568,6 +2612,7 @@ function Main({ session }) {
     timer.current = setTimeout(() => setToast(null), undo ? 6000 : 4000)
   }, [])
   const { items, columns, categories, loading, online, act } = useBoard(session.user.id, notify)
+  const offline = useOffline()
   const [catsOpen, setCatsOpen] = useState(false)
   const log = useLog(session.user.id, notify)
   const runAct = log.running && log.actions.find(a => a.id === log.running.action_id)
@@ -2594,13 +2639,14 @@ function Main({ session }) {
       <div class="brand"><img src="icon.svg" alt="" /><span>TaskBoard</span></div>
       <strong class="ptitle">${TABS.find(t => t[0] === tab)[2]}${tab !== 'record' && runAct ? html` <small class="runic" title=${runAct.name + ' を記録中'}>${runAct.icon}</small>` : ''}</strong>
       <nav class="tabs">${TABS.map(t => tabBtn(t, false))}</nav>
-      <span class=${'sync' + (online ? '' : ' off')} title=${online ? '同期中' : '同期できていません'}></span>
+      <span class=${'sync' + (online && !offline ? '' : ' off')} title=${offline ? 'オフライン' : online ? '同期中' : '同期できていません'}></span>
       <${DotMenu} label="アカウント" render=${close => html`
         <div class="msec" style="font-weight:400">${session.user.email}</div>
         <${MI} icon="⟳" label="再読み込み" onClick=${() => { close(); location.reload() }} />
         <div class="msep"></div>
         <${MI} icon="⎋" label="ログアウト" onClick=${() => { close(); sb.auth.signOut() }} />`} />
     </header>
+    ${offline && html`<div class="offbar" role="status">📴 オフライン：保存済みの内容を表示中（編集はできません）</div>`}
     ${tab !== 'inbox' && tab !== 'board' ? html`<${LogView} key=${tab} L=${log} B=${{ items, categories, columns, act, notify }} sub=${tab} />`
       : loading ? html`<div class="empty">読み込み中…</div>`
       : tab === 'inbox' ? html`<${Inbox} items=${inboxItems} columns=${columns} categories=${categories} act=${act} openDetail=${setDetailId} />`
@@ -2649,16 +2695,26 @@ function Auth() {
 function App() {
   const [session, setSession] = useState(undefined)
   useEffect(() => {
-    sb.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = sb.auth.onAuthStateChange((_e, s) => setSession(s))
+    // オフラインでトークンを更新できず session が空でも、端末に残っているログイン情報があれば閲覧用に使う
+    const pick = (s, ev) => s || (ev !== 'SIGNED_OUT' ? storedSession() : null)
+    sb.auth.getSession().then(({ data }) => setSession(pick(data.session)))
+    const { data } = sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_OUT') clearDataCache(); setSession(pick(s, ev)) })
     return () => data.subscription.unsubscribe()
   }, [])
+  cacheUid = session?.user?.id || ''
   if (session === undefined) return html`<div class="center muted">読み込み中…</div>`
   if (!session) return html`<${Auth} />`
   return html`<${Main} key=${session.user.id} session=${session} />`
 }
 
 render(html`<${App} />`, document.getElementById('app'))
+
+// オフラインでも開けるように、アプリ本体と部品を端末に保存する（sw.js）
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(reg => {
+    setTimeout(() => reg.active?.postMessage({ type: 'cache', urls: performance.getEntriesByType('resource').map(e => e.name) }), 3000)
+  }).catch(() => {})
+}
 </script>
 </body>
 </html>
